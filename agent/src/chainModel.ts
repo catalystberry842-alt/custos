@@ -1,8 +1,8 @@
 /**
- * chainModel.ts — pure, dependency-free mirror of the Heirloom contract's state machine.
+ * chainModel.ts — pure, dependency-free mirror of the Custos contract's state machine.
  *
  * Used by: the agent (SimChain + deciding what to say) and, via scripts/sync-model.sh, the web demo.
- * Keep semantically identical to contracts/src/Heirloom.sol (status(), anchor(), approve, touch, and the AI-agent
+ * Keep semantically identical to contracts/src/Custos.sol (status(), anchor(), approve, touch, and the AI-agent
  * layer: agentState(), agentSpend(), guardianFreezeAgent(), Handover).
  * All times are milliseconds since epoch.
  */

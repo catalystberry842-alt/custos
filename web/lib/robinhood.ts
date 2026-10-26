@@ -5,7 +5,7 @@
  * Public RPCs are rate-limited and "not recommended for production" per the docs. Providers (Alchemy etc.) need an
  * API key which must never be committed; users can paste their own RPC URL in the panel instead.
  *
- * NOTE for contract logic: on Robinhood Chain `block.number` is an L1-block-number ESTIMATE. Heirloom only uses
+ * NOTE for contract logic: on Robinhood Chain `block.number` is an L1-block-number ESTIMATE. Custos only uses
  * `block.timestamp`, so nothing in this app converts block numbers to time.
  */
 import { defineChain } from "viem";

@@ -1,9 +1,9 @@
 {
-  "name": "heirloom-agent",
+  "name": "custos-agent",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Heirloom check-in agent: deterministic scheduler + escalation, LLM only writes wording.",
+  "description": "Custos check-in agent: deterministic scheduler + escalation, LLM only writes wording.",
   "scripts": {
     "demo": "tsx src/cli.ts demo",
     "demo:return": "tsx src/cli.ts demo --scenario return",

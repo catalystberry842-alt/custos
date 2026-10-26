@@ -3,7 +3,7 @@ pragma solidity ^0.8.26;
 
 /// @title IGuardianStaking — DESIGN STUB ONLY (not implemented, not deployed)
 /// @notice Describes the optional token hook from docs/token-design.md.
-///         Heirloom vaults do NOT depend on this interface: the core switch works
+///         Custos vaults do NOT depend on this interface: the core switch works
 ///         with zero token and zero staking. A future registry could let vault
 ///         owners *optionally* pick guardians / check-in operators that have stake
 ///         at risk, and let a verifiable on-chain fault slash that stake.

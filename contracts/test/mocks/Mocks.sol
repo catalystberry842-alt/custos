@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {Heirloom} from "../../src/Heirloom.sol";
+import {Custos} from "../../src/Custos.sol";
 
 contract MockERC20 {
     string public name = "Mock";
@@ -84,11 +84,11 @@ contract FalseToken is MockERC20 {
 
 /// Token whose transfer calls back into the vault.
 contract ReentrantToken is MockERC20 {
-    Heirloom public vault;
+    Custos public vault;
     uint256 public attempts;
     uint256 public succeeded;
 
-    function setVault(Heirloom v) external {
+    function setVault(Custos v) external {
         vault = v;
     }
 
@@ -111,12 +111,12 @@ contract ReentrantToken is MockERC20 {
 
 /// Beneficiary that tries to re-enter on every ETH it receives.
 contract ReentrantBeneficiary {
-    Heirloom public vault;
+    Custos public vault;
     uint256 public attempts;
     uint256 public succeeded;
     uint256 public received;
 
-    function setVault(Heirloom v) external {
+    function setVault(Custos v) external {
         vault = v;
     }
 
@@ -150,7 +150,7 @@ contract PickyBeneficiary {
         require(accept, "no");
     }
 
-    function redirect(Heirloom v, address to) external {
+    function redirect(Custos v, address to) external {
         v.redirectPayout(to);
     }
 }
@@ -168,11 +168,11 @@ contract GasBombBeneficiary {
 
 /// Owner that is a contract and tries to re-enter withdraw paths.
 contract ReentrantOwner {
-    Heirloom public vault;
+    Custos public vault;
     uint256 public reenterSucceeded;
     bool public armed;
 
-    function setVault(Heirloom v) external {
+    function setVault(Custos v) external {
         vault = v;
     }
 
@@ -220,14 +220,14 @@ contract CallbackToken is MockERC20 {
 
 /// Smart-contract agent (e.g. an AI's 4337 account). `reenter` is called by hostile tokens/recipients.
 contract AgentContract {
-    Heirloom public vault;
+    Custos public vault;
     uint256 public reenterOk;
     uint256 public reenterTried;
     address public asset;
     address public to;
     uint256 public amt;
 
-    constructor(Heirloom v) {
+    constructor(Custos v) {
         vault = v;
     }
 
@@ -248,12 +248,12 @@ contract AgentContract {
 
 /// Allowlisted recipient that tries everything when paid.
 contract HostileRecipient {
-    Heirloom public vault;
+    Custos public vault;
     uint256 public attempts;
     uint256 public succeeded;
     address public agentContract;
 
-    function setVault(Heirloom v, address a) external {
+    function setVault(Custos v, address a) external {
         vault = v;
         agentContract = a;
     }
@@ -266,7 +266,7 @@ contract HostileRecipient {
         try vault.executeRelease() {
             succeeded++;
         } catch {}
-        try vault.approveOutcome(Heirloom.Outcome.Handover) {
+        try vault.approveOutcome(Custos.Outcome.Handover) {
             succeeded++;
         } catch {}
         try vault.guardianFreezeAgent() {

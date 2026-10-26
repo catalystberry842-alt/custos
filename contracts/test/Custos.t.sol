@@ -2,12 +2,12 @@
 pragma solidity ^0.8.26;
 
 import {Test} from "forge-std/Test.sol";
-import {Heirloom} from "../src/Heirloom.sol";
-import {HeirloomFactory} from "../src/HeirloomFactory.sol";
+import {Custos} from "../src/Custos.sol";
+import {CustosFactory} from "../src/CustosFactory.sol";
 import "./mocks/Mocks.sol";
 
-contract HeirloomBase is Test {
-    Heirloom v;
+contract CustosBase is Test {
+    Custos v;
     address owner = makeAddr("owner");
     address heir = makeAddr("heir");
     address g1 = makeAddr("g1");
@@ -22,12 +22,12 @@ contract HeirloomBase is Test {
 
     uint256 t0;
 
-    function params() internal view returns (Heirloom.Params memory p) {
+    function params() internal view returns (Custos.Params memory p) {
         address[] memory gs = new address[](3);
         gs[0] = g1;
         gs[1] = g2;
         gs[2] = g3;
-        p = Heirloom.Params({
+        p = Custos.Params({
             beneficiary: heir,
             guardians: gs,
             threshold: 2,
@@ -42,7 +42,7 @@ contract HeirloomBase is Test {
         vm.warp(1_700_000_000);
         t0 = block.timestamp;
         vm.prank(owner);
-        v = new Heirloom(owner, params());
+        v = new Custos(owner, params());
         vm.deal(owner, 1000 ether);
         vm.prank(owner);
         (bool ok,) = address(v).call{value: 10 ether}("");
@@ -61,7 +61,7 @@ contract HeirloomBase is Test {
     }
 }
 
-contract HeirloomConfigTest is HeirloomBase {
+contract CustosConfigTest is CustosBase {
     function test_constructorState() public view {
         assertEq(v.owner(), owner);
         assertEq(v.beneficiary(), heir);
@@ -71,115 +71,115 @@ contract HeirloomConfigTest is HeirloomBase {
         assertEq(v.grace(), GRACE);
         assertEq(v.challengeWindow(), CHALLENGE);
         assertEq(v.lastCheckIn(), t0);
-        assertEq(uint8(v.status()), uint8(Heirloom.Status.Active));
+        assertEq(uint8(v.status()), uint8(Custos.Status.Active));
         assertTrue(v.isGuardian(g1) && v.isGuardian(g2) && v.isGuardian(g3));
     }
 
     function test_constructor_revertsOnBadParams() public {
-        Heirloom.Params memory p = params();
+        Custos.Params memory p = params();
         p.threshold = 0;
-        vm.expectRevert(Heirloom.BadParams.selector);
-        new Heirloom(owner, p);
+        vm.expectRevert(Custos.BadParams.selector);
+        new Custos(owner, p);
 
         p = params();
         p.threshold = 4;
-        vm.expectRevert(Heirloom.BadParams.selector);
-        new Heirloom(owner, p);
+        vm.expectRevert(Custos.BadParams.selector);
+        new Custos(owner, p);
 
         p = params();
         p.interval = 1 hours;
-        vm.expectRevert(Heirloom.BadParams.selector);
-        new Heirloom(owner, p);
+        vm.expectRevert(Custos.BadParams.selector);
+        new Custos(owner, p);
 
         p = params();
         p.grace = 0;
-        vm.expectRevert(Heirloom.BadParams.selector);
-        new Heirloom(owner, p);
+        vm.expectRevert(Custos.BadParams.selector);
+        new Custos(owner, p);
 
         p = params();
         p.challengeWindow = 1 hours;
-        vm.expectRevert(Heirloom.BadParams.selector);
-        new Heirloom(owner, p);
+        vm.expectRevert(Custos.BadParams.selector);
+        new Custos(owner, p);
 
         p = params();
         p.fallbackDelay = 1 days; // below MIN_FALLBACK but non-zero
-        vm.expectRevert(Heirloom.BadParams.selector);
-        new Heirloom(owner, p);
+        vm.expectRevert(Custos.BadParams.selector);
+        new Custos(owner, p);
 
         p = params();
         p.beneficiary = owner;
-        vm.expectRevert(Heirloom.BadParams.selector);
-        new Heirloom(owner, p);
+        vm.expectRevert(Custos.BadParams.selector);
+        new Custos(owner, p);
 
         p = params();
         p.beneficiary = address(0);
-        vm.expectRevert(Heirloom.BadParams.selector);
-        new Heirloom(owner, p);
+        vm.expectRevert(Custos.BadParams.selector);
+        new Custos(owner, p);
 
         p = params();
         p.guardians = new address[](0);
-        vm.expectRevert(Heirloom.BadParams.selector);
-        new Heirloom(owner, p);
+        vm.expectRevert(Custos.BadParams.selector);
+        new Custos(owner, p);
     }
 
     function test_constructor_guardianValidation() public {
-        Heirloom.Params memory p = params();
+        Custos.Params memory p = params();
         p.guardians[1] = p.guardians[0]; // duplicate
-        vm.expectRevert(Heirloom.AlreadyGuardian.selector);
-        new Heirloom(owner, p);
+        vm.expectRevert(Custos.AlreadyGuardian.selector);
+        new Custos(owner, p);
 
         p = params();
         p.guardians[0] = owner; // owner cannot be guardian
-        vm.expectRevert(Heirloom.ZeroAddress.selector);
-        new Heirloom(owner, p);
+        vm.expectRevert(Custos.ZeroAddress.selector);
+        new Custos(owner, p);
 
         p = params();
         p.guardians[2] = address(0);
-        vm.expectRevert(Heirloom.ZeroAddress.selector);
-        new Heirloom(owner, p);
+        vm.expectRevert(Custos.ZeroAddress.selector);
+        new Custos(owner, p);
 
         p = params();
         p.guardians = new address[](11);
         for (uint256 i; i < 11; i++) {
             p.guardians[i] = address(uint160(0x1000 + i));
         }
-        vm.expectRevert(Heirloom.BadParams.selector);
-        new Heirloom(owner, p);
+        vm.expectRevert(Custos.BadParams.selector);
+        new Custos(owner, p);
     }
 
     function test_fallbackCanBeDisabled() public {
-        Heirloom.Params memory p = params();
+        Custos.Params memory p = params();
         p.fallbackDelay = 0;
-        Heirloom x = new Heirloom(owner, p);
+        Custos x = new Custos(owner, p);
         assertEq(x.fallbackDelay(), 0);
     }
 
     function test_setBeneficiary_onlyOwner_andTouches() public {
         address newHeir = makeAddr("newHeir");
         vm.prank(rando);
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.setBeneficiary(newHeir);
 
         vm.prank(g1);
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.setBeneficiary(newHeir);
 
         vm.warp(t0 + 5 days);
         vm.expectEmit(true, true, false, false);
-        emit Heirloom.BeneficiaryChanged(heir, newHeir);
+        emit Custos.BeneficiaryChanged(heir, newHeir);
         vm.prank(owner);
         v.setBeneficiary(newHeir);
         assertEq(v.beneficiary(), newHeir);
         assertEq(v.lastCheckIn(), t0 + 5 days);
 
         vm.prank(owner);
-        vm.expectRevert(Heirloom.BadParams.selector);
+        vm.expectRevert(Custos.BadParams.selector);
         v.setBeneficiary(owner);
         vm.prank(owner);
-        vm.expectRevert(Heirloom.BadParams.selector);
+        vm.expectRevert(Custos.BadParams.selector);
         v.setBeneficiary(address(0));
         vm.prank(owner);
-        vm.expectRevert(Heirloom.BadParams.selector);
+        vm.expectRevert(Custos.BadParams.selector);
         v.setBeneficiary(address(v));
     }
 
@@ -192,11 +192,11 @@ contract HeirloomConfigTest is HeirloomBase {
         assertEq(v.fallbackDelay(), 0);
 
         vm.prank(rando);
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.setTimings(60 days, 10 days, 5 days, 0);
 
         vm.prank(owner);
-        vm.expectRevert(Heirloom.BadParams.selector);
+        vm.expectRevert(Custos.BadParams.selector);
         v.setTimings(1 hours, 10 days, 5 days, 0);
     }
 
@@ -215,7 +215,7 @@ contract HeirloomConfigTest is HeirloomBase {
         assertEq(v.guardianCount(), 2);
 
         vm.prank(rando);
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.setGuardians(gs, 1);
     }
 
@@ -223,7 +223,7 @@ contract HeirloomConfigTest is HeirloomBase {
     function test_replaceGuardian() public {
         address n = makeAddr("newG");
         vm.expectEmit(true, true, false, false);
-        emit Heirloom.GuardianReplaced(g3, n);
+        emit Custos.GuardianReplaced(g3, n);
         vm.prank(owner);
         v.replaceGuardian(g3, n);
         assertFalse(v.isGuardian(g3));
@@ -235,18 +235,18 @@ contract HeirloomConfigTest is HeirloomBase {
 
     function test_replaceGuardian_reverts() public {
         vm.startPrank(owner);
-        vm.expectRevert(Heirloom.NotAGuardian.selector);
+        vm.expectRevert(Custos.NotAGuardian.selector);
         v.replaceGuardian(rando, makeAddr("x"));
-        vm.expectRevert(Heirloom.AlreadyGuardian.selector);
+        vm.expectRevert(Custos.AlreadyGuardian.selector);
         v.replaceGuardian(g1, g2);
-        vm.expectRevert(Heirloom.ZeroAddress.selector);
+        vm.expectRevert(Custos.ZeroAddress.selector);
         v.replaceGuardian(g1, address(0));
-        vm.expectRevert(Heirloom.ZeroAddress.selector);
+        vm.expectRevert(Custos.ZeroAddress.selector);
         v.replaceGuardian(g1, owner);
         vm.stopPrank();
 
         vm.prank(g1);
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.replaceGuardian(g1, makeAddr("x"));
     }
 
@@ -256,7 +256,7 @@ contract HeirloomConfigTest is HeirloomBase {
         vm.prank(owner);
         v.replaceGuardian(g3, n); // owner is alive → touch → timer reset
         vm.prank(g3);
-        vm.expectRevert(Heirloom.NotGuardian.selector);
+        vm.expectRevert(Custos.NotGuardian.selector);
         v.approveRelease();
 
         _toGraceEnd();
@@ -277,76 +277,76 @@ contract HeirloomConfigTest is HeirloomBase {
     }
 }
 
-contract HeirloomTimelineTest is HeirloomBase {
+contract CustosTimelineTest is CustosBase {
     function test_statusProgression() public {
-        assertEq(uint8(v.status()), uint8(Heirloom.Status.Active));
+        assertEq(uint8(v.status()), uint8(Custos.Status.Active));
         vm.warp(t0 + INTERVAL);
-        assertEq(uint8(v.status()), uint8(Heirloom.Status.Active)); // boundary inclusive
+        assertEq(uint8(v.status()), uint8(Custos.Status.Active)); // boundary inclusive
         vm.warp(t0 + INTERVAL + 1);
-        assertEq(uint8(v.status()), uint8(Heirloom.Status.Grace));
+        assertEq(uint8(v.status()), uint8(Custos.Status.Grace));
         vm.warp(t0 + INTERVAL + GRACE);
-        assertEq(uint8(v.status()), uint8(Heirloom.Status.Grace));
+        assertEq(uint8(v.status()), uint8(Custos.Status.Grace));
         vm.warp(t0 + INTERVAL + GRACE + 1);
-        assertEq(uint8(v.status()), uint8(Heirloom.Status.AwaitingGuardians));
+        assertEq(uint8(v.status()), uint8(Custos.Status.AwaitingGuardians));
         _vote2();
-        assertEq(uint8(v.status()), uint8(Heirloom.Status.Challenge));
+        assertEq(uint8(v.status()), uint8(Custos.Status.Challenge));
         vm.warp(block.timestamp + CHALLENGE);
-        assertEq(uint8(v.status()), uint8(Heirloom.Status.Executable));
+        assertEq(uint8(v.status()), uint8(Custos.Status.Executable));
         v.executeRelease();
-        assertEq(uint8(v.status()), uint8(Heirloom.Status.Released));
+        assertEq(uint8(v.status()), uint8(Custos.Status.Released));
     }
 
     function test_checkIn_resetsTimer_emits() public {
         vm.warp(t0 + 20 days);
         vm.expectEmit(true, false, false, true);
-        emit Heirloom.CheckedIn(owner, uint64(t0 + 20 days), 2);
+        emit Custos.CheckedIn(owner, uint64(t0 + 20 days), 2);
         vm.prank(owner);
         v.checkIn();
         assertEq(v.lastCheckIn(), t0 + 20 days);
         assertEq(v.expiry(), t0 + 20 days + INTERVAL);
         // old deadline no longer matters
         vm.warp(t0 + INTERVAL + GRACE + 1);
-        assertEq(uint8(v.status()), uint8(Heirloom.Status.Active));
+        assertEq(uint8(v.status()), uint8(Custos.Status.Active));
     }
 
     function test_checkIn_onlyOwner() public {
         vm.prank(rando);
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.checkIn();
         vm.prank(g1);
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.checkIn();
         vm.prank(heir);
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.checkIn();
     }
 
     // ───── guardian collusion ─────
     function test_collusionBeforeExpiry_fails() public {
         vm.startPrank(g1);
-        vm.expectRevert(Heirloom.NotYetExpired.selector);
+        vm.expectRevert(Custos.NotYetExpired.selector);
         v.approveRelease();
         vm.stopPrank();
         vm.prank(g2);
-        vm.expectRevert(Heirloom.NotYetExpired.selector);
+        vm.expectRevert(Custos.NotYetExpired.selector);
         v.approveRelease();
         vm.prank(g3);
-        vm.expectRevert(Heirloom.NotYetExpired.selector);
+        vm.expectRevert(Custos.NotYetExpired.selector);
         v.approveRelease();
         assertEq(v.approvalCount(), 0);
         assertEq(v.challengeEnd(), 0);
-        vm.expectRevert(Heirloom.NotYetExpired.selector);
+        vm.expectRevert(Custos.NotYetExpired.selector);
         v.executeRelease();
     }
 
     function test_collusionDuringGrace_fails() public {
         vm.warp(t0 + INTERVAL + 1);
         vm.prank(g1);
-        vm.expectRevert(Heirloom.NotYetExpired.selector);
+        vm.expectRevert(Custos.NotYetExpired.selector);
         v.approveRelease();
         vm.warp(t0 + INTERVAL + GRACE); // exactly graceEnd → still too early
         vm.prank(g2);
-        vm.expectRevert(Heirloom.NotYetExpired.selector);
+        vm.expectRevert(Custos.NotYetExpired.selector);
         v.approveRelease();
         assertEq(address(heir).balance, 0);
     }
@@ -358,9 +358,9 @@ contract HeirloomTimelineTest is HeirloomBase {
         vm.prank(g2);
         v.approveRelease();
         vm.prank(g3);
-        vm.expectRevert(Heirloom.ChallengeRunning.selector);
+        vm.expectRevert(Custos.ChallengeRunning.selector);
         v.approveRelease();
-        vm.expectRevert(Heirloom.ChallengeNotOver.selector);
+        vm.expectRevert(Custos.ChallengeNotOver.selector);
         v.executeRelease();
         assertEq(heir.balance, 0);
         assertEq(address(v).balance, 10 ether);
@@ -369,15 +369,15 @@ contract HeirloomTimelineTest is HeirloomBase {
     function test_guardiansCannotMoveFundsOrChangeConfig() public {
         _toGraceEnd();
         vm.startPrank(g1);
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.withdrawNative(1 ether);
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.setBeneficiary(g1);
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.closeVault();
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.setGuardians(new address[](0), 0);
-        vm.expectRevert(Heirloom.NotBeneficiary.selector);
+        vm.expectRevert(Custos.NotBeneficiary.selector);
         v.beneficiaryClaim();
         vm.stopPrank();
     }
@@ -385,13 +385,13 @@ contract HeirloomTimelineTest is HeirloomBase {
     function test_nonGuardianCannotVote() public {
         _toGraceEnd();
         vm.prank(rando);
-        vm.expectRevert(Heirloom.NotGuardian.selector);
+        vm.expectRevert(Custos.NotGuardian.selector);
         v.approveRelease();
         vm.prank(heir);
-        vm.expectRevert(Heirloom.NotGuardian.selector);
+        vm.expectRevert(Custos.NotGuardian.selector);
         v.approveRelease();
         vm.prank(owner);
-        vm.expectRevert(Heirloom.NotGuardian.selector);
+        vm.expectRevert(Custos.NotGuardian.selector);
         v.approveRelease();
     }
 
@@ -401,9 +401,9 @@ contract HeirloomTimelineTest is HeirloomBase {
         v.approveRelease();
         assertEq(v.approvalCount(), 1);
         assertEq(v.challengeEnd(), 0);
-        assertEq(uint8(v.status()), uint8(Heirloom.Status.AwaitingGuardians));
+        assertEq(uint8(v.status()), uint8(Custos.Status.AwaitingGuardians));
         vm.warp(block.timestamp + 365 days);
-        vm.expectRevert(Heirloom.NotYetExpired.selector); // no challenge started
+        vm.expectRevert(Custos.NotYetExpired.selector); // no challenge started
         v.executeRelease();
     }
 
@@ -413,7 +413,7 @@ contract HeirloomTimelineTest is HeirloomBase {
         vm.prank(g1);
         v.approveRelease();
         vm.prank(g1);
-        vm.expectRevert(Heirloom.AlreadyApproved.selector);
+        vm.expectRevert(Custos.AlreadyApproved.selector);
         v.approveRelease();
         assertEq(v.approvalCount(), 1);
         assertEq(v.challengeEnd(), 0); // one guardian cannot hit threshold of 2 alone
@@ -427,7 +427,7 @@ contract HeirloomTimelineTest is HeirloomBase {
         v.withdrawApproval();
         assertEq(v.approvalCount(), 0);
         vm.prank(g1);
-        vm.expectRevert(Heirloom.NotApproved.selector);
+        vm.expectRevert(Custos.NotApproved.selector);
         v.withdrawApproval();
         vm.prank(g1);
         v.approveRelease();
@@ -438,7 +438,7 @@ contract HeirloomTimelineTest is HeirloomBase {
         _toGraceEnd();
         _vote2();
         vm.prank(g1);
-        vm.expectRevert(Heirloom.ChallengeRunning.selector);
+        vm.expectRevert(Custos.ChallengeRunning.selector);
         v.withdrawApproval();
     }
 
@@ -446,21 +446,21 @@ contract HeirloomTimelineTest is HeirloomBase {
     function test_ownerReturnsDuringChallenge_cancels() public {
         _toGraceEnd();
         _vote2();
-        assertEq(uint8(v.status()), uint8(Heirloom.Status.Challenge));
+        assertEq(uint8(v.status()), uint8(Custos.Status.Challenge));
         vm.warp(block.timestamp + 1 days);
 
         vm.expectEmit(false, false, false, true);
-        emit Heirloom.ReleaseCancelled(v.epoch() + 1);
+        emit Custos.ReleaseCancelled(v.epoch() + 1);
         vm.prank(owner);
         v.checkIn();
 
-        assertEq(uint8(v.status()), uint8(Heirloom.Status.Active));
+        assertEq(uint8(v.status()), uint8(Custos.Status.Active));
         assertEq(v.approvalCount(), 0);
         assertEq(v.challengeEnd(), 0);
         assertFalse(v.hasApproved(g1));
 
         vm.warp(block.timestamp + 10 days);
-        vm.expectRevert(Heirloom.NotYetExpired.selector);
+        vm.expectRevert(Custos.NotYetExpired.selector);
         v.executeRelease();
         assertEq(heir.balance, 0);
         assertEq(address(v).balance, 10 ether);
@@ -470,17 +470,17 @@ contract HeirloomTimelineTest is HeirloomBase {
         _toGraceEnd();
         _vote2();
         vm.warp(block.timestamp + CHALLENGE + 5 days);
-        assertEq(uint8(v.status()), uint8(Heirloom.Status.Executable));
+        assertEq(uint8(v.status()), uint8(Custos.Status.Executable));
         vm.prank(owner);
         v.checkIn();
-        vm.expectRevert(Heirloom.NotYetExpired.selector);
+        vm.expectRevert(Custos.NotYetExpired.selector);
         v.executeRelease();
         assertEq(heir.balance, 0);
     }
 
     function test_cancelRelease_requiresActiveRelease() public {
         vm.prank(owner);
-        vm.expectRevert(Heirloom.NothingToDo.selector);
+        vm.expectRevert(Custos.NothingToDo.selector);
         v.cancelRelease();
 
         _toGraceEnd();
@@ -528,7 +528,7 @@ contract HeirloomTimelineTest is HeirloomBase {
         _vote2();
         vm.warp(block.timestamp + CHALLENGE);
         vm.expectEmit(true, false, false, true);
-        emit Heirloom.Released(heir, 10 ether, false);
+        emit Custos.Released(heir, 10 ether, false);
         vm.prank(rando);
         v.executeRelease();
         assertEq(heir.balance, 10 ether);
@@ -541,7 +541,7 @@ contract HeirloomTimelineTest is HeirloomBase {
         _toGraceEnd();
         _vote2();
         vm.warp(block.timestamp + CHALLENGE - 1);
-        vm.expectRevert(Heirloom.ChallengeNotOver.selector);
+        vm.expectRevert(Custos.ChallengeNotOver.selector);
         v.executeRelease();
     }
 
@@ -552,21 +552,21 @@ contract HeirloomTimelineTest is HeirloomBase {
         v.executeRelease();
 
         vm.startPrank(owner);
-        vm.expectRevert(Heirloom.Finished.selector);
+        vm.expectRevert(Custos.Finished.selector);
         v.checkIn();
-        vm.expectRevert(Heirloom.Finished.selector);
+        vm.expectRevert(Custos.Finished.selector);
         v.withdrawNative(1);
-        vm.expectRevert(Heirloom.Finished.selector);
+        vm.expectRevert(Custos.Finished.selector);
         v.setBeneficiary(rando);
-        vm.expectRevert(Heirloom.Finished.selector);
+        vm.expectRevert(Custos.Finished.selector);
         v.closeVault();
-        vm.expectRevert(Heirloom.Finished.selector);
+        vm.expectRevert(Custos.Finished.selector);
         v.pause(1 days);
         vm.stopPrank();
         vm.prank(g3);
-        vm.expectRevert(Heirloom.Finished.selector);
+        vm.expectRevert(Custos.Finished.selector);
         v.approveRelease();
-        vm.expectRevert(Heirloom.Finished.selector);
+        vm.expectRevert(Custos.Finished.selector);
         v.executeRelease();
     }
 
@@ -574,16 +574,16 @@ contract HeirloomTimelineTest is HeirloomBase {
     function test_fallback_beneficiaryClaimsWhenGuardiansVanish() public {
         vm.warp(v.fallbackOpensAt());
         vm.prank(heir);
-        vm.expectRevert(Heirloom.FallbackNotAvailable.selector);
+        vm.expectRevert(Custos.FallbackNotAvailable.selector);
         v.beneficiaryClaim();
 
         vm.warp(v.fallbackOpensAt() + 1);
         vm.prank(rando);
-        vm.expectRevert(Heirloom.NotBeneficiary.selector);
+        vm.expectRevert(Custos.NotBeneficiary.selector);
         v.beneficiaryClaim();
 
         vm.expectEmit(true, false, false, true);
-        emit Heirloom.Released(heir, 10 ether, true);
+        emit Custos.Released(heir, 10 ether, true);
         vm.prank(heir);
         v.beneficiaryClaim();
         assertEq(heir.balance, 10 ether);
@@ -592,7 +592,7 @@ contract HeirloomTimelineTest is HeirloomBase {
     function test_fallback_notBeforeGrace() public {
         vm.warp(t0 + INTERVAL + GRACE + 1);
         vm.prank(heir);
-        vm.expectRevert(Heirloom.FallbackNotAvailable.selector);
+        vm.expectRevert(Custos.FallbackNotAvailable.selector);
         v.beneficiaryClaim();
     }
 
@@ -601,7 +601,7 @@ contract HeirloomTimelineTest is HeirloomBase {
         vm.prank(owner);
         v.checkIn();
         vm.prank(heir);
-        vm.expectRevert(Heirloom.FallbackNotAvailable.selector);
+        vm.expectRevert(Custos.FallbackNotAvailable.selector);
         v.beneficiaryClaim();
     }
 
@@ -610,7 +610,7 @@ contract HeirloomTimelineTest is HeirloomBase {
         v.setTimings(INTERVAL, GRACE, CHALLENGE, 0);
         vm.warp(block.timestamp + 5 * 365 days);
         vm.prank(heir);
-        vm.expectRevert(Heirloom.FallbackNotAvailable.selector);
+        vm.expectRevert(Custos.FallbackNotAvailable.selector);
         v.beneficiaryClaim();
     }
 
@@ -618,15 +618,15 @@ contract HeirloomTimelineTest is HeirloomBase {
     function test_pause_extendsDeadline_andBlocksGuardians() public {
         vm.prank(owner);
         v.pause(60 days);
-        assertEq(uint8(v.status()), uint8(Heirloom.Status.Paused));
+        assertEq(uint8(v.status()), uint8(Custos.Status.Paused));
         vm.warp(t0 + 100 days); // would be way past plain expiry
         // pausedUntil = t0+60d; expiry = t0+90d; graceEnd = t0+97d
-        assertEq(uint8(v.status()), uint8(Heirloom.Status.AwaitingGuardians));
+        assertEq(uint8(v.status()), uint8(Custos.Status.AwaitingGuardians));
         vm.warp(t0 + 60 days - 1);
         vm.prank(g1);
-        vm.expectRevert(Heirloom.NotYetExpired.selector);
+        vm.expectRevert(Custos.NotYetExpired.selector);
         v.approveRelease();
-        assertEq(uint8(v.status()), uint8(Heirloom.Status.Paused));
+        assertEq(uint8(v.status()), uint8(Custos.Status.Paused));
     }
 
     function test_pause_deadOwnerCannotLockForever() public {
@@ -635,7 +635,7 @@ contract HeirloomTimelineTest is HeirloomBase {
         // dead: nothing else happens. After pausedUntil + interval + grace guardians can act.
         vm.warp(t0 + 90 days + INTERVAL + GRACE);
         vm.prank(g1);
-        vm.expectRevert(Heirloom.NotYetExpired.selector);
+        vm.expectRevert(Custos.NotYetExpired.selector);
         v.approveRelease();
         vm.warp(block.timestamp + 1);
         vm.prank(g1);
@@ -649,13 +649,13 @@ contract HeirloomTimelineTest is HeirloomBase {
 
     function test_pause_bounds() public {
         vm.startPrank(owner);
-        vm.expectRevert(Heirloom.BadParams.selector);
+        vm.expectRevert(Custos.BadParams.selector);
         v.pause(0);
-        vm.expectRevert(Heirloom.BadParams.selector);
+        vm.expectRevert(Custos.BadParams.selector);
         v.pause(91 days);
         vm.stopPrank();
         vm.prank(rando);
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.pause(1 days);
     }
 
@@ -667,9 +667,9 @@ contract HeirloomTimelineTest is HeirloomBase {
         v.unpause();
         assertEq(v.pausedUntil(), 0);
         assertEq(v.anchor(), t0 + 10 days);
-        assertEq(uint8(v.status()), uint8(Heirloom.Status.Active));
+        assertEq(uint8(v.status()), uint8(Custos.Status.Active));
         vm.prank(owner);
-        vm.expectRevert(Heirloom.NothingToDo.selector);
+        vm.expectRevert(Custos.NothingToDo.selector);
         v.unpause();
     }
 
@@ -683,7 +683,7 @@ contract HeirloomTimelineTest is HeirloomBase {
     }
 }
 
-contract HeirloomAssetsTest is HeirloomBase {
+contract CustosAssetsTest is CustosBase {
     MockERC20 tok;
 
     function setUp() public override {
@@ -703,13 +703,13 @@ contract HeirloomAssetsTest is HeirloomBase {
 
     function test_withdrawNative_onlyOwner() public {
         vm.prank(rando);
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.withdrawNative(1);
         vm.prank(heir);
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.withdrawNative(1);
         vm.prank(owner);
-        vm.expectRevert(Heirloom.TransferFailedErr.selector);
+        vm.expectRevert(Custos.TransferFailedErr.selector);
         v.withdrawNative(11 ether);
     }
 
@@ -727,7 +727,7 @@ contract HeirloomAssetsTest is HeirloomBase {
         tok.mint(rando, 10e18);
         vm.startPrank(rando);
         tok.approve(address(v), 10e18);
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.depositToken(address(tok), 10e18);
         vm.stopPrank();
     }
@@ -741,21 +741,21 @@ contract HeirloomAssetsTest is HeirloomBase {
         assertEq(tok.balanceOf(owner), 940e18);
         assertEq(tok.balanceOf(address(v)), 60e18);
         vm.prank(rando);
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.withdrawToken(address(tok), 1);
     }
 
     function test_addRemoveToken() public {
         vm.startPrank(owner);
         v.addToken(address(tok));
-        vm.expectRevert(Heirloom.TokenAlreadyListed.selector);
+        vm.expectRevert(Custos.TokenAlreadyListed.selector);
         v.addToken(address(tok));
         v.removeToken(address(tok));
-        vm.expectRevert(Heirloom.TokenNotListed.selector);
+        vm.expectRevert(Custos.TokenNotListed.selector);
         v.removeToken(address(tok));
-        vm.expectRevert(Heirloom.ZeroAddress.selector);
+        vm.expectRevert(Custos.ZeroAddress.selector);
         v.addToken(address(0));
-        vm.expectRevert(Heirloom.ZeroAddress.selector);
+        vm.expectRevert(Custos.ZeroAddress.selector);
         v.addToken(rando); // EOA, not a contract
         vm.stopPrank();
     }
@@ -766,7 +766,7 @@ contract HeirloomAssetsTest is HeirloomBase {
             v.addToken(address(new MockERC20()));
         }
         MockERC20 extra = new MockERC20();
-        vm.expectRevert(Heirloom.TooManyTokens.selector);
+        vm.expectRevert(Custos.TooManyTokens.selector);
         v.addToken(address(extra));
         vm.stopPrank();
     }
@@ -814,14 +814,14 @@ contract HeirloomAssetsTest is HeirloomBase {
         assertEq(heir.balance, 13 ether);
         v.sweepToken(address(tok));
         assertEq(tok.balanceOf(heir), 9e18);
-        vm.expectRevert(Heirloom.NothingToDo.selector);
+        vm.expectRevert(Custos.NothingToDo.selector);
         v.sweepToken(address(tok));
     }
 
     function test_sweep_beforeFinished_reverts() public {
-        vm.expectRevert(Heirloom.NotFinished.selector);
+        vm.expectRevert(Custos.NotFinished.selector);
         v.sweep();
-        vm.expectRevert(Heirloom.NotFinished.selector);
+        vm.expectRevert(Custos.NotFinished.selector);
         v.sweepToken(address(tok));
     }
 
@@ -835,14 +835,14 @@ contract HeirloomAssetsTest is HeirloomBase {
         assertEq(owner.balance, beforeBal + 10 ether);
         assertEq(tok.balanceOf(owner), 1000e18);
         assertTrue(v.closed());
-        assertEq(uint8(v.status()), uint8(Heirloom.Status.Closed));
+        assertEq(uint8(v.status()), uint8(Custos.Status.Closed));
         // dead switch: guardians can't do anything, ever
         vm.warp(block.timestamp + 10 * 365 days);
         vm.prank(g1);
-        vm.expectRevert(Heirloom.Finished.selector);
+        vm.expectRevert(Custos.Finished.selector);
         v.approveRelease();
         vm.prank(heir);
-        vm.expectRevert(Heirloom.Finished.selector);
+        vm.expectRevert(Custos.Finished.selector);
         v.beneficiaryClaim();
         // later strays go to the owner, not the heir
         vm.deal(rando, 1 ether);
@@ -855,10 +855,10 @@ contract HeirloomAssetsTest is HeirloomBase {
 
     function test_redirectPayout_forRejectingBeneficiary() public {
         PickyBeneficiary picky = new PickyBeneficiary();
-        Heirloom.Params memory p = params();
+        Custos.Params memory p = params();
         p.beneficiary = address(picky);
         vm.prank(owner);
-        Heirloom x = new Heirloom(owner, p);
+        Custos x = new Custos(owner, p);
         vm.deal(address(x), 5 ether);
 
         vm.warp(x.graceEnd() + 1);
@@ -873,10 +873,10 @@ contract HeirloomAssetsTest is HeirloomBase {
 
         address safe = makeAddr("safeWallet");
         vm.prank(rando);
-        vm.expectRevert(Heirloom.NotBeneficiary.selector);
+        vm.expectRevert(Custos.NotBeneficiary.selector);
         x.redirectPayout(safe);
 
-        vm.expectRevert(Heirloom.ZeroAddress.selector);
+        vm.expectRevert(Custos.ZeroAddress.selector);
         picky.redirect(x, address(0));
         picky.redirect(x, safe);
         x.sweep();
@@ -885,13 +885,13 @@ contract HeirloomAssetsTest is HeirloomBase {
 
     function test_redirectPayout_beforeRelease_reverts() public {
         vm.prank(heir);
-        vm.expectRevert(Heirloom.NotFinished.selector);
+        vm.expectRevert(Custos.NotFinished.selector);
         v.redirectPayout(rando);
     }
 }
 
-contract HeirloomHostileTest is HeirloomBase {
-    function _release(Heirloom x) internal {
+contract CustosHostileTest is CustosBase {
+    function _release(Custos x) internal {
         vm.warp(x.graceEnd() + 1);
         vm.prank(g1);
         x.approveRelease();
@@ -938,9 +938,9 @@ contract HeirloomHostileTest is HeirloomBase {
 
     function test_gasBombBeneficiary_doesNotBlockRelease() public {
         GasBombBeneficiary gb = new GasBombBeneficiary();
-        Heirloom.Params memory p = params();
+        Custos.Params memory p = params();
         p.beneficiary = address(gb);
-        Heirloom x = new Heirloom(owner, p);
+        Custos x = new Custos(owner, p);
         vm.deal(address(x), 2 ether);
         MockERC20 good = new MockERC20();
         good.mint(address(x), 55);
@@ -955,9 +955,9 @@ contract HeirloomHostileTest is HeirloomBase {
     // ───── reentrancy ─────
     function test_reentrancy_viaBeneficiaryReceiveHook() public {
         ReentrantBeneficiary rb = new ReentrantBeneficiary();
-        Heirloom.Params memory p = params();
+        Custos.Params memory p = params();
         p.beneficiary = address(rb);
-        Heirloom x = new Heirloom(owner, p);
+        Custos x = new Custos(owner, p);
         rb.setVault(x);
         vm.deal(address(x), 8 ether);
         _release(x);
@@ -969,7 +969,7 @@ contract HeirloomHostileTest is HeirloomBase {
 
     function test_reentrancy_viaMaliciousToken() public {
         ReentrantToken rt = new ReentrantToken();
-        Heirloom x = new Heirloom(owner, params());
+        Custos x = new Custos(owner, params());
         rt.setVault(x);
         rt.mint(address(x), 1000);
         vm.deal(address(x), 4 ether);
@@ -984,8 +984,8 @@ contract HeirloomHostileTest is HeirloomBase {
 
     function test_reentrancy_ownerContractCannotReenterWithdraw() public {
         ReentrantOwner ro = new ReentrantOwner();
-        Heirloom.Params memory p = params();
-        Heirloom x = new Heirloom(address(ro), p);
+        Custos.Params memory p = params();
+        Custos x = new Custos(address(ro), p);
         ro.setVault(x);
         vm.deal(address(x), 5 ether);
         ro.arm();
@@ -997,13 +997,13 @@ contract HeirloomHostileTest is HeirloomBase {
 
     function test_doubleExecute_reverts() public {
         _release(v);
-        vm.expectRevert(Heirloom.Finished.selector);
+        vm.expectRevert(Custos.Finished.selector);
         v.executeRelease();
         assertEq(heir.balance, 10 ether);
     }
 }
 
-contract HeirloomFuzzTest is HeirloomBase {
+contract CustosFuzzTest is CustosBase {
     /// No matter how many guardians vote and when, nothing releases before graceEnd.
     function testFuzz_noReleaseBeforeGraceEnd(uint256 dt, uint8 voters) public {
         dt = bound(dt, 0, uint256(INTERVAL) + GRACE);
@@ -1012,10 +1012,10 @@ contract HeirloomFuzzTest is HeirloomBase {
         voters = uint8(bound(voters, 0, 3));
         for (uint256 i; i < voters; i++) {
             vm.prank(gs[i]);
-            vm.expectRevert(Heirloom.NotYetExpired.selector);
+            vm.expectRevert(Custos.NotYetExpired.selector);
             v.approveRelease();
         }
-        vm.expectRevert(Heirloom.NotYetExpired.selector);
+        vm.expectRevert(Custos.NotYetExpired.selector);
         v.executeRelease();
         assertEq(heir.balance, 0);
         assertFalse(v.released());
@@ -1031,7 +1031,7 @@ contract HeirloomFuzzTest is HeirloomBase {
         v.checkIn();
         extra = bound(extra, 0, uint256(INTERVAL) + GRACE);
         vm.warp(block.timestamp + extra);
-        vm.expectRevert(Heirloom.NotYetExpired.selector);
+        vm.expectRevert(Custos.NotYetExpired.selector);
         v.executeRelease();
         assertEq(address(v).balance, 10 ether);
     }
@@ -1039,9 +1039,9 @@ contract HeirloomFuzzTest is HeirloomBase {
     /// Only the beneficiary ever receives: whatever guardian subset / timing, funds go to heir.
     function testFuzz_onlyBeneficiaryReceives(uint8 thr, uint256 extraWait) public {
         thr = uint8(bound(thr, 1, 3));
-        Heirloom.Params memory p = params();
+        Custos.Params memory p = params();
         p.threshold = thr;
-        Heirloom x = new Heirloom(owner, p);
+        Custos x = new Custos(owner, p);
         vm.deal(address(x), 3 ether);
         vm.warp(x.graceEnd() + 1);
         address[3] memory gs = [g1, g2, g3];
@@ -1067,7 +1067,7 @@ contract HeirloomFuzzTest is HeirloomBase {
             v.setTimings(i, g, c, f);
             assertEq(v.interval(), i);
         } else {
-            vm.expectRevert(Heirloom.BadParams.selector);
+            vm.expectRevert(Custos.BadParams.selector);
             v.setTimings(i, g, c, f);
         }
         vm.stopPrank();
@@ -1085,21 +1085,21 @@ contract HeirloomFuzzTest is HeirloomBase {
     }
 }
 
-contract HeirloomFactoryTest is HeirloomBase {
+contract CustosFactoryTest is CustosBase {
     function test_factoryDeploysIsolatedVaults() public {
-        HeirloomFactory f = new HeirloomFactory();
+        CustosFactory f = new CustosFactory();
         vm.prank(owner);
         address a = f.create(params());
         vm.prank(rando);
         address b = f.create(params());
         assertTrue(a != b);
-        assertEq(Heirloom(payable(a)).owner(), owner);
-        assertEq(Heirloom(payable(b)).owner(), rando);
+        assertEq(Custos(payable(a)).owner(), owner);
+        assertEq(Custos(payable(b)).owner(), rando);
         assertEq(f.vaultsOf(owner).length, 1);
         assertEq(f.totalVaults(), 2);
         // owner of vault A cannot touch vault B
         vm.prank(owner);
-        vm.expectRevert(Heirloom.NotOwner.selector);
-        Heirloom(payable(b)).checkIn();
+        vm.expectRevert(Custos.NotOwner.selector);
+        Custos(payable(b)).checkIn();
     }
 }

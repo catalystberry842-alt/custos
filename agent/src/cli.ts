@@ -124,13 +124,13 @@ async function demo() {
 }
 
 async function serve() {
-  const cfgPath = args[1] ?? process.env.HEIRLOOM_CONFIG ?? new URL("../examples/config.sample.json", import.meta.url).pathname;
+  const cfgPath = args[1] ?? process.env.CUSTOS_CONFIG ?? new URL("../examples/config.sample.json", import.meta.url).pathname;
   const cfg = JSON.parse(readFileSync(cfgPath, "utf8"));
   const now = Date.now();
   let chain: ChainReader;
   if (cfg.mode === "chain") {
-    if (!process.env.HEIRLOOM_RPC_URL) throw new Error("mode=chain needs HEIRLOOM_RPC_URL");
-    chain = new ViemChainReader(process.env.HEIRLOOM_RPC_URL);
+    if (!process.env.CUSTOS_RPC_URL) throw new Error("mode=chain needs CUSTOS_RPC_URL");
+    chain = new ViemChainReader(process.env.CUSTOS_RPC_URL);
   } else {
     const sim = new SimChain();
     for (const p of cfg.profiles as SwitchProfile[]) {
@@ -144,11 +144,11 @@ async function serve() {
   const channels: Record<string, Channel> = { console: new ConsoleChannel(), mock: new MockChannel() };
   let tg: TelegramChannel | undefined;
   if (process.env.TELEGRAM_BOT_TOKEN) { tg = new TelegramChannel(process.env.TELEGRAM_BOT_TOKEN); channels.telegram = tg; }
-  const secret = process.env.HEIRLOOM_LINK_SECRET ?? randomBytes(24).toString("hex");
-  if (!process.env.HEIRLOOM_LINK_SECRET) console.warn("HEIRLOOM_LINK_SECRET not set: using a random per-run secret (old links die on restart).");
+  const secret = process.env.CUSTOS_LINK_SECRET ?? randomBytes(24).toString("hex");
+  if (!process.env.CUSTOS_LINK_SECRET) console.warn("CUSTOS_LINK_SECRET not set: using a random per-run secret (old links die on restart).");
   const agent = new Agent({
     profiles: cfg.profiles, chain, channels,
-    store: process.env.HEIRLOOM_STATE ? new JsonFileStore(process.env.HEIRLOOM_STATE) : new MemoryStore(),
+    store: process.env.CUSTOS_STATE ? new JsonFileStore(process.env.CUSTOS_STATE) : new MemoryStore(),
     wording: wordingFromEnv(), baseUrl: cfg.baseUrl, appUrl: cfg.appUrl, linkSecret: secret,
   });
   const server = createCheckInServer(agent);

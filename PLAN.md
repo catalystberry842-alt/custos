@@ -1,15 +1,15 @@
-# Heirloom — PLAN
+# Custos — PLAN
 
-> A dead-man's switch for AI agents and their owners.  <!-- name + tagline: docs/BRAND.md -->
+> A guardian for your AI agent. A dead-man's switch for AI agents and their owners.  <!-- name + tagline: docs/BRAND.md -->
 
-Working name: **Heirloom** (not final: see `docs/BRAND.md`). A non-custodial dead-man's switch for AI agents (and plain crypto inheritance) holding stablecoins, ETH and ERC-20s, security/custody tooling targeting **Robinhood Chain** (Arbitrum Orbit L2; mainnet 4663, testnet 46630; ETH gas). Originally scoped for Monad; retargeted 2026-10-26.
+Name: **Custos** (Latin for "guardian"; see `docs/BRAND.md`). A non-custodial dead-man's switch for AI agents (and plain crypto inheritance) holding stablecoins, ETH and ERC-20s, security/custody tooling targeting **Robinhood Chain** (Arbitrum Orbit L2; mainnet 4663, testnet 46630; ETH gas). Originally scoped for Monad; retargeted 2026-10-26.
 Everything here is local-only: no deploys, no repos pushed, no tokens launched, no keys held.
 
 ## 1. Components
 
 | Dir | What | Stack |
 |---|---|---|
-| `contracts/` | `Heirloom` (per-owner switch vault + AI-agent layer) + `HeirloomFactory` + `IGuardianStaking` stub | Solidity 0.8.26, Foundry |
+| `contracts/` | `Custos` (per-owner switch vault + AI-agent layer) + `CustosFactory` + `IGuardianStaking` stub | Solidity 0.8.26, Foundry |
 | `agent/` | Check-in assistant (the face of the product) that also monitors the managed AI agent (mock adapter): scheduler, escalation state machine, guardian alerts, adapters (mock / Telegram / console), LLM wording hook with rules fallback | Node 20, TypeScript, vitest |
 | `web/` | Landing, setup wizard, dashboard, "Fast-forward time" simulation, optional wallet connect | Next.js (app router), viem (injected wallet only) |
 | `docs/token-design.md` | Optional token-hook design + Robinhood launch section (NOT implemented) | Markdown |

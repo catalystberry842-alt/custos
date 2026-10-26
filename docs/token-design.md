@@ -1,4 +1,4 @@
-# Heirloom: optional token hook (DESIGN ONLY)
+# Custos: optional token hook (DESIGN ONLY)
 
 > **Status: design note. Nothing here is implemented, deployed, or launched.** No token exists, none is planned by this
 > repository, and the core product works with **zero** token. This document only describes where a token *could*
@@ -8,7 +8,7 @@
 
 ## 0. Principle: the switch must not depend on a token
 
-`Heirloom.sol` has no token dependency, no admin key, no fee switch and no upgrade path. Owners pay only gas. Any token
+`Custos.sol` has no token dependency, no admin key, no fee switch and no upgrade path. Owners pay only gas. Any token
 feature must be **opt-in per vault** and must never be able to:
 
 * block, delay, or redirect a release,
@@ -51,7 +51,7 @@ The hard part (see §3). Slashing proceeds go to (a) the harmed vault owner/bene
 See [`contracts/src/interfaces/IGuardianStaking.sol`](../contracts/src/interfaces/IGuardianStaking.sol): `stake`,
 `requestUnstake`, `unstake`, `stakeOf`, `isEligible`, `slash(operator, vault, amount, reason, proof)`, `payServiceFee`.
 It is a **stub**: no implementation exists. A vault would integrate it at most as a *read-only* check in the UI or an
-optional "guardian registry" contract, never inside `Heirloom.sol`'s release path.
+optional "guardian registry" contract, never inside `Custos.sol`'s release path.
 
 ## 3. Open design problems (why this is non-trivial)
 
@@ -79,12 +79,12 @@ optional "guardian registry" contract, never inside `Heirloom.sol`'s release pat
    Nigeria's ISA 2025 and the SEC's proposed digital-asset rules; many others), a token sold to the public with expectations of profit from others' efforts may be a
    security or regulated crypto-asset. Marketing, lock-ups, buybacks, "staking rewards" and exchange listings all raise the risk. **Do not** describe
    it as an investment, and do not promise price appreciation, yield, or buybacks.
-2. **Custody/money-transmission.** Heirloom is designed non-custodial (owner-held funds in an owner-specific contract, no admin key). Adding
+2. **Custody/money-transmission.** Custos is designed non-custodial (owner-held funds in an owner-specific contract, no admin key). Adding
    operator pools, fee collection, or the ability to move user funds could change that analysis.
 3. **Bond volatility & slashing disputes.** Slashing someone's stake can create contractual and consumer-protection disputes. Terms of service,
    operator agreements and clear fault definitions are mandatory.
 4. **Estate/inheritance law.** An on-chain transfer is **not** a will. Local succession law, forced-heirship rules, taxes and probate may override or
-   complicate a release. Heirloom provides a technical mechanism, not legal certainty. Users should also have a conventional will/letter of wishes.
+   complicate a release. Custos provides a technical mechanism, not legal certainty. Users should also have a conventional will/letter of wishes.
 5. **Data protection.** Operators handle contact details (phone, Telegram ID) of owners and guardians: GDPR/NDPR-type duties apply.
 6. **Smart-contract risk.** Any staking contract adds attack surface (reentrancy, oracle-free slashing proofs, accounting bugs). It needs its own
    independent audit and a bug bounty; a bug there could lock bonds.
@@ -113,7 +113,7 @@ optional "guardian registry" contract, never inside `Heirloom.sol`'s release pat
 > Facts checked 2026-10-26; re-check before relying on them.
 
 ### 7.1 Why this chain
-Heirloom is security and **stablecoin/ETH custody** infrastructure. Robinhood Chain (Arbitrum Orbit L2, chain id 4663, ETH gas) is
+Custos is security and **stablecoin/ETH custody** infrastructure. Robinhood Chain (Arbitrum Orbit L2, chain id 4663, ETH gas) is
 built around tokenised real-world assets and stablecoins such as USDG (Paxos); a dead-man's-switch for those holdings fits the
 audience. The token question is separate from, and strictly after, shipping and auditing the vaults ([DEPLOY-ROBINHOOD.md](DEPLOY-ROBINHOOD.md)).
 
@@ -137,7 +137,7 @@ Conditions we would impose on ourselves:
 2. **Fixed, public parameters before the auction opens:** total supply, auctioned amount, floor price, duration, graduation threshold, LP timelock,
    vesting schedule. No post-hoc changes; the token has no mint function after creation.
 3. **No price talk.** Floor price is a mechanism parameter, not a valuation claim. No "FDV", "x", "up only", yield, buyback or burn promises in any
-   channel. Use the CCA's own risk wording; state plainly that the token can lose all value and that Heirloom works without it.
+   channel. Use the CCA's own risk wording; state plainly that the token can lose all value and that Custos works without it.
 4. **LP locked** for a published period; liquidity recipient is a multisig or the timelock, never a personal EOA.
 5. The auction runs only **after** the contracts are audited and have been live without incident for a published period. A token must never be
    the reason to rush the audit.
@@ -153,7 +153,7 @@ If it cannot do all of the following, **do not launch one** (ETH/stablecoin fees
 | **Fees** | Optional operator-service fees (SMS/voice, monitoring) paid per vault by the owner. | Fees must be **payable in a stablecoin**; the token is at most a discounted option, never required. No protocol fee switch on vault funds. |
 | **Slashing** | Equivocation and missed-attestation faults provable on-chain (§3.1); proceeds to the harmed vault/beneficiary and a burn/safety fund. | No subjective faults; no bounty to the accuser alone; slashing authority is code, not a multisig. |
 
-Hard guardrails: the token never gates, delays, redirects or pauses a release; the core `Heirloom` contract has no token dependency and no admin key;
+Hard guardrails: the token never gates, delays, redirects or pauses a release; the core `Custos` contract has no token dependency and no admin key;
 if the token or registry dies every vault keeps working.
 
 ### 7.4 Legal caveats

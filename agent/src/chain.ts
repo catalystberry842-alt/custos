@@ -70,7 +70,7 @@ const ABI = [
 
 const ZERO = "0x0000000000000000000000000000000000000000";
 
-/** Read-only viem reader for a deployed Heirloom vault. `id` is the vault address. No keys involved. */
+/** Read-only viem reader for a deployed Custos vault. `id` is the vault address. No keys involved. */
 export class ViemChainReader implements ChainReader {
   private client;
   constructor(rpcUrl: string) {

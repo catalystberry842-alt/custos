@@ -9,4 +9,4 @@ next-env.d.ts
 .env.*
 !.env.example
 *.tmp
-heirloom-state.json
+custos-state.json

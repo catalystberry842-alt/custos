@@ -4,11 +4,11 @@
 #   bash scripts/rename-product.sh <NewName>                       dry run: shows what would change
 #   bash scripts/rename-product.sh <NewName> --apply               brand files + all docs (*.md, .env.example)
 #   bash scripts/rename-product.sh <NewName> --apply --identifiers also code symbols: contract/file/class names,
-#                                                                  package names, env vars (HEIRLOOM_* → NEWNAME_*)
+#                                                                  package names, env vars (OLDNAME_* → NEWNAME_*)
 #
 # "Brand files" (each package has exactly one; they hold name + tagline):
 #   agent/src/brand.ts   web/lib/brand.ts   contracts/src/Brand.sol   docs/BRAND.md
-# Candidates: Hereditas, Custos, Paradosis.   Tip: after --identifiers run `bash scripts/test-all.sh`.
+# Tip: after --identifiers run `bash scripts/test-all.sh`.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 new="${1:-}"; shift || true
@@ -41,7 +41,7 @@ for f in "${files[@]}"; do
     else
       case "$f" in
         ./agent/src/brand.ts|./web/lib/brand.ts|./contracts/src/Brand.sol) sed -i -E "s/$old/$new/g; s/$oldl/$newl/g" "$root/$f" ;;
-        # docs: prose only. Leave code symbols (Heirloom.sol, HeirloomFactory, HeirloomAgent…) for --identifiers
+        # docs: prose only. Leave code symbols (OldName.sol, OldNameFactory, OldNameAgent…) for --identifiers
         *) OLD="$old" NEW="$new" perl -pi -e 's/\b$ENV{OLD}\b(?!\.sol|\.t\.sol|Factory|Agent|\()/$ENV{NEW}/g' "$root/$f" ;;
       esac
     fi

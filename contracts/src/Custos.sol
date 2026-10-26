@@ -3,7 +3,7 @@ pragma solidity ^0.8.26;
 
 import {IERC20Min} from "./interfaces/IERC20Min.sol";
 
-/// @title Heirloom — non-custodial dead-man's switch for AI agents and their owners (one vault per owner)
+/// @title Custos — non-custodial dead-man's switch for AI agents and their owners (one vault per owner)
 /// @notice Owner deposits the native gas asset (ETH on Robinhood Chain) + whitelisted ERC-20s (e.g. stablecoins). While the owner keeps checking in, nothing
 ///         can happen. If the owner goes silent for `interval + grace`, N-of-M guardians may
 ///         approve a release; after a `challengeWindow` (owner can cancel by acting) anyone can
@@ -29,7 +29,7 @@ import {IERC20Min} from "./interfaces/IERC20Min.sol";
 ///           Handover to the successor the owner named in advance.
 ///         - Every owner action ("proof of life") bumps `epoch`, voiding votes and challenges.
 ///         - UNAUDITED. Do not hold real value before an audit.
-contract Heirloom {
+contract Custos {
     // ───────────────────────────── types ─────────────────────────────
     enum Status {
         Active, // owner is within interval

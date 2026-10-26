@@ -2,8 +2,8 @@
 pragma solidity ^0.8.26;
 
 import {Test} from "forge-std/Test.sol";
-import {Heirloom} from "../src/Heirloom.sol";
-import {HeirloomFactory} from "../src/HeirloomFactory.sol";
+import {Custos} from "../src/Custos.sol";
+import {CustosFactory} from "../src/CustosFactory.sol";
 import {DeployRobinhood} from "../script/DeployRobinhood.s.sol";
 import "./mocks/Mocks.sol";
 
@@ -13,9 +13,9 @@ import "./mocks/Mocks.sol";
 ///  - `block.prevrandao` / `block.difficulty` are constants; `block.coinbase` is the fee account;
 ///  - 96 KB max contract size (we stay far below even Ethereum's 24 KB);
 ///  - msg.sender of L1->L2 messages is an aliased address.
-/// These tests prove Heirloom's timing depends ONLY on block.timestamp.
+/// These tests prove Custos's timing depends ONLY on block.timestamp.
 contract RobinhoodChainTest is Test {
-    Heirloom v;
+    Custos v;
     address owner = makeAddr("owner");
     address heir = makeAddr("heir");
     address g1 = makeAddr("g1");
@@ -27,12 +27,12 @@ contract RobinhoodChainTest is Test {
     uint64 constant CHALLENGE = 3 days;
     uint64 constant FALLBACK = 30 days;
 
-    function _params() internal view returns (Heirloom.Params memory p) {
+    function _params() internal view returns (Custos.Params memory p) {
         address[] memory gs = new address[](3);
         gs[0] = g1;
         gs[1] = g2;
         gs[2] = g3;
-        p = Heirloom.Params({
+        p = Custos.Params({
             beneficiary: heir,
             guardians: gs,
             threshold: 2,
@@ -47,7 +47,7 @@ contract RobinhoodChainTest is Test {
         vm.warp(1_800_000_000);
         vm.roll(1_000);
         vm.prank(owner);
-        v = new Heirloom(owner, _params());
+        v = new Custos(owner, _params());
         vm.deal(owner, 100 ether);
         vm.prank(owner);
         (bool ok,) = address(v).call{value: 5 ether}("");
@@ -61,16 +61,16 @@ contract RobinhoodChainTest is Test {
         uint64 exp = v.expiry();
         uint64 ge = v.graceEnd();
         vm.roll(block.number + 1_000_000_000_000); // ~10^12 blocks, ~ millennia of blocks
-        assertEq(uint8(v.status()), uint8(Heirloom.Status.Active));
+        assertEq(uint8(v.status()), uint8(Custos.Status.Active));
         assertEq(v.expiry(), exp);
         assertEq(v.graceEnd(), ge);
         // guardians can't approve, nobody can execute or claim early
         vm.prank(g1);
-        vm.expectRevert(Heirloom.NotYetExpired.selector);
+        vm.expectRevert(Custos.NotYetExpired.selector);
         v.approveRelease();
         vm.expectRevert();
         v.executeRelease();
-        vm.expectRevert(Heirloom.FallbackNotAvailable.selector);
+        vm.expectRevert(Custos.FallbackNotAvailable.selector);
         vm.prank(heir);
         v.beneficiaryClaim();
     }
@@ -79,9 +79,9 @@ contract RobinhoodChainTest is Test {
     function test_blockNumberGoingBackwards_isHarmless() public {
         vm.warp(block.timestamp + INTERVAL + GRACE + 1);
         vm.roll(1_000_000_000);
-        assertEq(uint8(v.status()), uint8(Heirloom.Status.Grace) + 1); // AwaitingGuardians
+        assertEq(uint8(v.status()), uint8(Custos.Status.Grace) + 1); // AwaitingGuardians
         vm.roll(1); // "L1 estimate" regresses
-        assertEq(uint8(v.status()), uint8(Heirloom.Status.Grace) + 1);
+        assertEq(uint8(v.status()), uint8(Custos.Status.Grace) + 1);
         vm.prank(g1);
         v.approveRelease(); // still works
     }
@@ -91,10 +91,10 @@ contract RobinhoodChainTest is Test {
         uint256 frozen = block.number;
         vm.warp(block.timestamp + INTERVAL + 1);
         assertEq(block.number, frozen);
-        assertEq(uint8(v.status()), uint8(Heirloom.Status.Grace));
+        assertEq(uint8(v.status()), uint8(Custos.Status.Grace));
         vm.warp(block.timestamp + GRACE);
         assertEq(block.number, frozen);
-        assertEq(uint8(v.status()), uint8(Heirloom.Status.AwaitingGuardians));
+        assertEq(uint8(v.status()), uint8(Custos.Status.AwaitingGuardians));
     }
 
     /// Full lifecycle with block.number wildly jumping between EVERY step (up, down, up). Outcome == pure-timestamp run.
@@ -108,16 +108,16 @@ contract RobinhoodChainTest is Test {
         vm.roll(3);
         vm.prank(g2);
         v.approveRelease();
-        assertEq(uint8(v.status()), uint8(Heirloom.Status.Challenge));
+        assertEq(uint8(v.status()), uint8(Custos.Status.Challenge));
         vm.roll(type(uint128).max); // enormous block jump inside the challenge window: must NOT end it
-        vm.expectRevert(Heirloom.ChallengeNotOver.selector);
+        vm.expectRevert(Custos.ChallengeNotOver.selector);
         v.executeRelease();
         vm.warp(block.timestamp + CHALLENGE); // exactly challengeEnd by time
         vm.roll(2);
-        assertEq(uint8(v.status()), uint8(Heirloom.Status.Executable));
+        assertEq(uint8(v.status()), uint8(Custos.Status.Executable));
         v.executeRelease();
         assertEq(heir.balance - heirBefore, 5 ether);
-        assertEq(uint8(v.status()), uint8(Heirloom.Status.Released));
+        assertEq(uint8(v.status()), uint8(Custos.Status.Released));
     }
 
     /// Owner check-in is not affected by block.number either way (cancels a challenge, resets the anchor by TIME).
@@ -131,9 +131,9 @@ contract RobinhoodChainTest is Test {
         vm.prank(owner);
         v.checkIn();
         assertEq(v.lastCheckIn(), block.timestamp);
-        assertEq(uint8(v.status()), uint8(Heirloom.Status.Active));
+        assertEq(uint8(v.status()), uint8(Custos.Status.Active));
         vm.roll(0);
-        assertEq(uint8(v.status()), uint8(Heirloom.Status.Active));
+        assertEq(uint8(v.status()), uint8(Custos.Status.Active));
     }
 
     /// Fuzz: for ANY block number, status is a pure function of (timestamp, state).
@@ -183,7 +183,7 @@ contract RobinhoodChainTest is Test {
     /// Source-level regression guard: the contracts must never reference L1-estimate / randomness / Arbitrum-specific values.
     function test_sourceDoesNotUseForbiddenGlobals() public view {
         string[4] memory files = [
-            "src/Heirloom.sol", "src/HeirloomFactory.sol", "src/interfaces/IGuardianStaking.sol", "src/interfaces/IERC20Min.sol"
+            "src/Custos.sol", "src/CustosFactory.sol", "src/interfaces/IGuardianStaking.sol", "src/interfaces/IERC20Min.sol"
         ];
         string[9] memory banned = [
             "block.number", "block.prevrandao", "block.difficulty", "block.coinbase", "blockhash(", "tx.origin", "arbBlockNumber", "ArbSys", "gasleft("
@@ -242,12 +242,12 @@ contract RobinhoodChainTest is Test {
     /// 96 KB is the Robinhood limit (24 KB on Ethereum). We keep BOTH contracts under Ethereum's 24 KB so the code stays
     /// portable and deployable with unmodified tooling (forge/anvil enforce 24 KB by default). Needs via_ir (see foundry.toml).
     function test_contractSizes_fitRobinhoodLimits() public {
-        HeirloomFactory f = new HeirloomFactory();
+        CustosFactory f = new CustosFactory();
         assertLt(address(v).code.length, 24_576);
         assertLt(address(f).code.length, 24_576);
-        assertLt(type(HeirloomFactory).creationCode.length, 49_152); // Ethereum initcode limit
-        emit log_named_uint("Heirloom runtime bytes", address(v).code.length);
-        emit log_named_uint("HeirloomFactory runtime bytes", address(f).code.length);
+        assertLt(type(CustosFactory).creationCode.length, 49_152); // Ethereum initcode limit
+        emit log_named_uint("Custos runtime bytes", address(v).code.length);
+        emit log_named_uint("CustosFactory runtime bytes", address(f).code.length);
     }
 
     /// Robinhood Chain has first-class ERC-4337 smart accounts, and L1 contracts reach L2 via ALIASED addresses.
@@ -260,13 +260,13 @@ contract RobinhoodChainTest is Test {
         address[] memory gs = new address[](2);
         gs[0] = address(guard1);
         gs[1] = address(guard2);
-        Heirloom.Params memory p = _params();
+        Custos.Params memory p = _params();
         p.beneficiary = address(heirAcct);
         p.guardians = gs;
         p.threshold = 2;
-        HeirloomFactory f = new HeirloomFactory();
+        CustosFactory f = new CustosFactory();
         vm.prank(address(acct)); // a smart-contract wallet as owner
-        Heirloom x = Heirloom(payable(f.create(p)));
+        Custos x = Custos(payable(f.create(p)));
         vm.deal(address(x), 1 ether);
         vm.warp(x.graceEnd() + 1);
         vm.prank(address(guard1));
@@ -284,7 +284,7 @@ contract RobinhoodChainTest is Test {
         address l1Guardian = makeAddr("l1-contract-guardian");
         vm.warp(v.graceEnd() + 1);
         vm.prank(l1Guardian);
-        vm.expectRevert(Heirloom.NotGuardian.selector);
+        vm.expectRevert(Custos.NotGuardian.selector);
         v.approveRelease();
     }
 
@@ -293,7 +293,7 @@ contract RobinhoodChainTest is Test {
     function test_deployScript_runsOnTestnetChainId() public {
         vm.chainId(46630);
         DeployRobinhood d = new DeployRobinhood();
-        HeirloomFactory f = d.run();
+        CustosFactory f = d.run();
         assertGt(address(f).code.length, 0);
     }
 
@@ -302,10 +302,10 @@ contract RobinhoodChainTest is Test {
         DeployRobinhood d = new DeployRobinhood();
         vm.expectRevert(DeployRobinhood.MainnetNotConfirmed.selector);
         d.run();
-        vm.setEnv("HEIRLOOM_MAINNET_OK", "yes");
-        HeirloomFactory f = d.run(); // allowed once the operator confirmed (still simulation inside forge test)
+        vm.setEnv("CUSTOS_MAINNET_OK", "yes");
+        CustosFactory f = d.run(); // allowed once the operator confirmed (still simulation inside forge test)
         assertGt(address(f).code.length, 0);
-        vm.setEnv("HEIRLOOM_MAINNET_OK", "");
+        vm.setEnv("CUSTOS_MAINNET_OK", "");
     }
 
     function test_deployScript_refusesUnknownChains() public {

@@ -2,13 +2,13 @@
 pragma solidity ^0.8.26;
 
 import {Test} from "forge-std/Test.sol";
-import {Heirloom} from "../src/Heirloom.sol";
-import {HeirloomFactory} from "../src/HeirloomFactory.sol";
+import {Custos} from "../src/Custos.sol";
+import {CustosFactory} from "../src/CustosFactory.sol";
 import "./mocks/Mocks.sol";
 
 /// Agent layer: an AI's operator key may spend within owner-set limits, only while the owner is alive.
 contract AgentBase is Test {
-    Heirloom v;
+    Custos v;
     MockERC20 usdc;
     address owner = makeAddr("owner");
     address heir = makeAddr("heir");
@@ -37,9 +37,9 @@ contract AgentBase is Test {
         gs[0] = g1;
         gs[1] = g2;
         gs[2] = g3;
-        Heirloom.Params memory p = Heirloom.Params(heir, gs, 2, INTERVAL, GRACE, CHALLENGE, 30 days);
+        Custos.Params memory p = Custos.Params(heir, gs, 2, INTERVAL, GRACE, CHALLENGE, 30 days);
         vm.prank(owner);
-        v = new Heirloom(owner, p);
+        v = new Custos(owner, p);
         usdc = new MockERC20();
         vm.deal(address(v), 20 ether);
         usdc.mint(address(v), 10_000e6);
@@ -62,7 +62,7 @@ contract AgentBase is Test {
         vm.warp(v.graceEnd() + 1);
     }
 
-    function _vote(address g, Heirloom.Outcome o) internal {
+    function _vote(address g, Custos.Outcome o) internal {
         vm.prank(g);
         v.approveOutcome(o);
     }
@@ -78,7 +78,7 @@ contract AgentConfigTest is AgentBase {
         (uint128 tx_, uint128 per) = v.assetLimit(address(0));
         assertEq(tx_, ETH_TX);
         assertEq(per, ETH_PERIOD);
-        assertEq(uint8(v.agentState()), uint8(Heirloom.AgentState.Active));
+        assertEq(uint8(v.agentState()), uint8(Custos.AgentState.Active));
         assertEq(v.agentAssets().length, 2);
         assertEq(v.recipients().length, 2);
         assertTrue(v.isToken(address(usdc))); // auto-listed so release forwards leftovers
@@ -86,77 +86,77 @@ contract AgentConfigTest is AgentBase {
 
     function test_onlyOwnerCanConfigure() public {
         vm.startPrank(rando);
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.setAgent(rando, PERIOD, 0);
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.revokeAgent();
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.setAssetLimit(address(0), 1, 1);
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.removeAssetLimit(address(0));
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.setRecipient(rando, true);
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.freezeAgent();
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.unfreezeAgent();
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.setSuccessor(rando);
         vm.stopPrank();
     }
 
     function test_roleSeparation() public {
         vm.startPrank(owner);
-        vm.expectRevert(Heirloom.RoleConflict.selector);
+        vm.expectRevert(Custos.RoleConflict.selector);
         v.setAgent(g1, PERIOD, 0); // guardian can't be the agent
-        vm.expectRevert(Heirloom.RoleConflict.selector);
+        vm.expectRevert(Custos.RoleConflict.selector);
         v.setAgent(heir, PERIOD, 0);
-        vm.expectRevert(Heirloom.RoleConflict.selector);
+        vm.expectRevert(Custos.RoleConflict.selector);
         v.setAgent(owner, PERIOD, 0);
-        vm.expectRevert(Heirloom.RoleConflict.selector);
+        vm.expectRevert(Custos.RoleConflict.selector);
         v.setAgent(successor, PERIOD, 0);
-        vm.expectRevert(Heirloom.RoleConflict.selector);
+        vm.expectRevert(Custos.RoleConflict.selector);
         v.setAgent(vendor, PERIOD, 0); // a recipient can't be the agent
-        vm.expectRevert(Heirloom.ZeroAddress.selector);
+        vm.expectRevert(Custos.ZeroAddress.selector);
         v.setAgent(address(0), PERIOD, 0);
-        vm.expectRevert(Heirloom.RoleConflict.selector);
+        vm.expectRevert(Custos.RoleConflict.selector);
         v.setRecipient(agent, true); // agent can't be paid by itself
-        vm.expectRevert(Heirloom.RoleConflict.selector);
+        vm.expectRevert(Custos.RoleConflict.selector);
         v.setSuccessor(agent);
-        vm.expectRevert(Heirloom.RoleConflict.selector);
+        vm.expectRevert(Custos.RoleConflict.selector);
         v.setSuccessor(heir);
-        vm.expectRevert(Heirloom.RoleConflict.selector);
+        vm.expectRevert(Custos.RoleConflict.selector);
         v.setSuccessor(g2);
-        vm.expectRevert(Heirloom.RoleConflict.selector);
+        vm.expectRevert(Custos.RoleConflict.selector);
         v.setSuccessor(vendor);
-        vm.expectRevert(Heirloom.BadParams.selector);
+        vm.expectRevert(Custos.BadParams.selector);
         v.setBeneficiary(agent);
-        vm.expectRevert(Heirloom.BadParams.selector);
+        vm.expectRevert(Custos.BadParams.selector);
         v.setBeneficiary(successor);
-        vm.expectRevert(Heirloom.RoleConflict.selector);
+        vm.expectRevert(Custos.RoleConflict.selector);
         v.replaceGuardian(g1, agent);
-        vm.expectRevert(Heirloom.RoleConflict.selector);
+        vm.expectRevert(Custos.RoleConflict.selector);
         v.replaceGuardian(g1, successor);
         address[] memory gs = new address[](1);
         gs[0] = agent;
-        vm.expectRevert(Heirloom.RoleConflict.selector);
+        vm.expectRevert(Custos.RoleConflict.selector);
         v.setGuardians(gs, 1);
         vm.stopPrank();
     }
 
     function test_badParams() public {
         vm.startPrank(owner);
-        vm.expectRevert(Heirloom.BadParams.selector);
+        vm.expectRevert(Custos.BadParams.selector);
         v.setAgent(rando, 59 minutes, 0);
-        vm.expectRevert(Heirloom.BadParams.selector);
+        vm.expectRevert(Custos.BadParams.selector);
         v.setAgent(rando, 366 days, 0);
-        vm.expectRevert(Heirloom.BadParams.selector);
+        vm.expectRevert(Custos.BadParams.selector);
         v.setAgent(rando, PERIOD, 366 days);
-        vm.expectRevert(Heirloom.BadParams.selector);
+        vm.expectRevert(Custos.BadParams.selector);
         v.setAssetLimit(address(0), 0, 1);
-        vm.expectRevert(Heirloom.BadParams.selector);
+        vm.expectRevert(Custos.BadParams.selector);
         v.setAssetLimit(address(0), 2, 1); // per-period below per-tx
-        vm.expectRevert(Heirloom.ZeroAddress.selector);
+        vm.expectRevert(Custos.ZeroAddress.selector);
         v.setAssetLimit(address(0xdead), 1, 1); // token without code
         vm.stopPrank();
     }
@@ -167,12 +167,12 @@ contract AgentConfigTest is AgentBase {
             v.setAssetLimit(address(new MockERC20()), 1, 1);
         } // 2 existing + 6 = 8
         address extra = address(new MockERC20());
-        vm.expectRevert(Heirloom.TooMany.selector);
+        vm.expectRevert(Custos.TooMany.selector);
         v.setAssetLimit(extra, 1, 1);
         for (uint256 i; i < 30; ++i) {
             v.setRecipient(address(uint160(0x1000 + i)), true);
         } // 2 existing + 30 = 32
-        vm.expectRevert(Heirloom.TooMany.selector);
+        vm.expectRevert(Custos.TooMany.selector);
         v.setRecipient(address(uint160(0x2000)), true);
         vm.stopPrank();
     }
@@ -185,22 +185,22 @@ contract AgentConfigTest is AgentBase {
         assertEq(v.agentAssets().length, 1);
         assertEq(v.recipients().length, 1);
         vm.prank(agent);
-        vm.expectRevert(Heirloom.AssetNotAllowed.selector);
+        vm.expectRevert(Custos.AssetNotAllowed.selector);
         v.agentSpend(address(usdc), vendor, 1);
         vm.prank(agent);
-        vm.expectRevert(Heirloom.RecipientNotAllowed.selector);
+        vm.expectRevert(Custos.RecipientNotAllowed.selector);
         v.agentSpend(address(0), vendor2, 1);
         vm.startPrank(owner);
-        vm.expectRevert(Heirloom.NothingToDo.selector);
+        vm.expectRevert(Custos.NothingToDo.selector);
         v.removeAssetLimit(address(usdc));
-        vm.expectRevert(Heirloom.NothingToDo.selector);
+        vm.expectRevert(Custos.NothingToDo.selector);
         v.setRecipient(vendor2, false);
         vm.stopPrank();
     }
 
     function test_cannotDelistTokenWhileLimited() public {
         vm.prank(owner);
-        vm.expectRevert(Heirloom.AssetHasLimit.selector);
+        vm.expectRevert(Custos.AssetHasLimit.selector);
         v.removeToken(address(usdc));
     }
 
@@ -223,7 +223,7 @@ contract AgentConfigTest is AgentBase {
         (, uint256 rem,) = v.agentAllowance(address(0));
         assertEq(rem, ETH_PERIOD); // fresh budget for the new key
         vm.prank(agent);
-        vm.expectRevert(Heirloom.NotAgent.selector); // old key is dead
+        vm.expectRevert(Custos.NotAgent.selector); // old key is dead
         v.agentSpend(address(0), vendor, 1);
         vm.prank(agent2);
         v.agentSpend(address(0), vendor, 1);
@@ -238,12 +238,12 @@ contract AgentConfigTest is AgentBase {
         assertFalse(v.isRecipient(vendor));
         (uint128 a, uint128 b) = v.assetLimit(address(0));
         assertEq(a + b, 0);
-        assertEq(uint8(v.agentState()), uint8(Heirloom.AgentState.None));
+        assertEq(uint8(v.agentState()), uint8(Custos.AgentState.None));
         vm.prank(agent);
-        vm.expectRevert(Heirloom.NotAgent.selector);
+        vm.expectRevert(Custos.NotAgent.selector);
         v.agentSpend(address(0), vendor, 1);
         vm.prank(owner);
-        vm.expectRevert(Heirloom.NoAgent.selector);
+        vm.expectRevert(Custos.NoAgent.selector);
         v.revokeAgent();
     }
 
@@ -272,16 +272,16 @@ contract AgentSpendTest is AgentBase {
 
     function test_perTxLimit() public {
         vm.prank(agent);
-        vm.expectRevert(Heirloom.OverPerTxLimit.selector);
+        vm.expectRevert(Custos.OverPerTxLimit.selector);
         v.agentSpend(address(0), vendor, 1 ether + 1);
         vm.prank(agent);
-        vm.expectRevert(Heirloom.OverPerTxLimit.selector);
+        vm.expectRevert(Custos.OverPerTxLimit.selector);
         v.agentSpend(address(usdc), vendor, USD_TX + 1);
     }
 
     function test_zeroAmountReverts() public {
         vm.prank(agent);
-        vm.expectRevert(Heirloom.OverPerTxLimit.selector);
+        vm.expectRevert(Custos.OverPerTxLimit.selector);
         v.agentSpend(address(0), vendor, 0);
     }
 
@@ -290,11 +290,11 @@ contract AgentSpendTest is AgentBase {
         _spendEth(1 ether);
         _spendEth(1 ether);
         vm.prank(agent);
-        vm.expectRevert(Heirloom.OverPeriodLimit.selector);
+        vm.expectRevert(Custos.OverPeriodLimit.selector);
         v.agentSpend(address(0), vendor, 1);
         vm.warp(block.timestamp + PERIOD - 1);
         vm.prank(agent);
-        vm.expectRevert(Heirloom.OverPeriodLimit.selector);
+        vm.expectRevert(Custos.OverPeriodLimit.selector);
         v.agentSpend(address(0), vendor, 1);
         vm.warp(block.timestamp + 1); // window over
         _spendEth(1 ether);
@@ -307,7 +307,7 @@ contract AgentSpendTest is AgentBase {
         _spendEth(1 ether);
         _spendEth(1 ether);
         vm.prank(agent);
-        vm.expectRevert(Heirloom.OverPeriodLimit.selector);
+        vm.expectRevert(Custos.OverPeriodLimit.selector);
         v.agentSpend(address(0), vendor, 1);
         vm.prank(agent);
         v.agentSpend(address(usdc), vendor, 100e6); // ETH exhausted, USD untouched
@@ -316,24 +316,24 @@ contract AgentSpendTest is AgentBase {
     function test_notAllowlistedRecipientOrAsset() public {
         address other = address(new MockERC20());
         vm.startPrank(agent);
-        vm.expectRevert(Heirloom.RecipientNotAllowed.selector);
+        vm.expectRevert(Custos.RecipientNotAllowed.selector);
         v.agentSpend(address(0), rando, 1);
-        vm.expectRevert(Heirloom.RecipientNotAllowed.selector);
+        vm.expectRevert(Custos.RecipientNotAllowed.selector);
         v.agentSpend(address(0), agent, 1); // not even itself
-        vm.expectRevert(Heirloom.AssetNotAllowed.selector);
+        vm.expectRevert(Custos.AssetNotAllowed.selector);
         v.agentSpend(other, vendor, 1);
         vm.stopPrank();
     }
 
     function test_onlyTheAgentCanSpend() public {
         vm.prank(rando);
-        vm.expectRevert(Heirloom.NotAgent.selector);
+        vm.expectRevert(Custos.NotAgent.selector);
         v.agentSpend(address(0), vendor, 1);
         vm.prank(owner);
-        vm.expectRevert(Heirloom.NotAgent.selector);
+        vm.expectRevert(Custos.NotAgent.selector);
         v.agentSpend(address(0), vendor, 1); // not even the owner through this door
         vm.prank(g1);
-        vm.expectRevert(Heirloom.NotAgent.selector);
+        vm.expectRevert(Custos.NotAgent.selector);
         v.agentSpend(address(0), vendor, 1);
     }
 
@@ -341,7 +341,7 @@ contract AgentSpendTest is AgentBase {
         vm.prank(owner);
         v.revokeAgent();
         vm.prank(address(0));
-        vm.expectRevert(Heirloom.NotAgent.selector);
+        vm.expectRevert(Custos.NotAgent.selector);
         v.agentSpend(address(0), vendor, 1);
     }
 
@@ -356,7 +356,7 @@ contract AgentSpendTest is AgentBase {
 
     function test_eventEmitted() public {
         vm.expectEmit(true, true, true, true);
-        emit Heirloom.AgentSpent(agent, address(0), vendor, 1 ether, 1 ether, ETH_PERIOD);
+        emit Custos.AgentSpent(agent, address(0), vendor, 1 ether, 1 ether, ETH_PERIOD);
         _spendEth(1 ether);
     }
 
@@ -364,7 +364,7 @@ contract AgentSpendTest is AgentBase {
         vm.prank(owner);
         v.withdrawNative(address(v).balance);
         vm.prank(agent);
-        vm.expectRevert(Heirloom.TransferFailedErr.selector);
+        vm.expectRevert(Custos.TransferFailedErr.selector);
         v.agentSpend(address(0), vendor, 1 ether);
         (, uint256 rem,) = v.agentAllowance(address(0));
         assertEq(rem, ETH_PERIOD);
@@ -389,11 +389,11 @@ contract AgentFreezeTest is AgentBase {
         // late allowance == grace → agent may work until graceEnd, then is frozen automatically
         vm.warp(v.graceEnd());
         _spendEth(1 ether); // still allowed exactly at the cutoff
-        assertEq(uint8(v.agentState()), uint8(Heirloom.AgentState.Active));
+        assertEq(uint8(v.agentState()), uint8(Custos.AgentState.Active));
         vm.warp(v.graceEnd() + 1);
-        assertEq(uint8(v.agentState()), uint8(Heirloom.AgentState.FrozenLapsed));
+        assertEq(uint8(v.agentState()), uint8(Custos.AgentState.FrozenLapsed));
         vm.prank(agent);
-        vm.expectRevert(Heirloom.AgentIsFrozen.selector);
+        vm.expectRevert(Custos.AgentIsFrozen.selector);
         v.agentSpend(address(0), vendor, 1);
     }
 
@@ -404,7 +404,7 @@ contract AgentFreezeTest is AgentBase {
         _spendEth(1);
         vm.warp(v.expiry() + 1);
         vm.prank(agent);
-        vm.expectRevert(Heirloom.AgentIsFrozen.selector);
+        vm.expectRevert(Custos.AgentIsFrozen.selector);
         v.agentSpend(address(0), vendor, 1);
     }
 
@@ -414,35 +414,35 @@ contract AgentFreezeTest is AgentBase {
         assertEq(v.agentCutoff(), v.graceEnd());
         vm.warp(v.graceEnd() + 1);
         vm.prank(agent);
-        vm.expectRevert(Heirloom.AgentIsFrozen.selector);
+        vm.expectRevert(Custos.AgentIsFrozen.selector);
         v.agentSpend(address(0), vendor, 1);
     }
 
     function test_noSpendDuringChallengeOrAfter() public {
         _lapse();
-        _vote(g1, Heirloom.Outcome.Release);
-        _vote(g2, Heirloom.Outcome.Release);
-        assertEq(uint8(v.status()), uint8(Heirloom.Status.Challenge));
-        assertEq(uint8(v.agentState()), uint8(Heirloom.AgentState.FrozenLapsed));
+        _vote(g1, Custos.Outcome.Release);
+        _vote(g2, Custos.Outcome.Release);
+        assertEq(uint8(v.status()), uint8(Custos.Status.Challenge));
+        assertEq(uint8(v.agentState()), uint8(Custos.AgentState.FrozenLapsed));
         vm.prank(agent);
-        vm.expectRevert(Heirloom.AgentIsFrozen.selector);
+        vm.expectRevert(Custos.AgentIsFrozen.selector);
         v.agentSpend(address(0), vendor, 1);
         vm.warp(block.timestamp + CHALLENGE);
         v.executeRelease();
-        assertEq(uint8(v.agentState()), uint8(Heirloom.AgentState.Stopped));
+        assertEq(uint8(v.agentState()), uint8(Custos.AgentState.Stopped));
         vm.prank(agent);
-        vm.expectRevert(Heirloom.Finished.selector);
+        vm.expectRevert(Custos.Finished.selector);
         v.agentSpend(address(0), vendor, 1);
     }
 
     function test_ownerReturningUnfreezesDuringChallengeWindow() public {
         _lapse();
-        _vote(g1, Heirloom.Outcome.Release);
-        _vote(g2, Heirloom.Outcome.Release);
+        _vote(g1, Custos.Outcome.Release);
+        _vote(g2, Custos.Outcome.Release);
         vm.prank(owner);
         v.checkIn(); // cancels the release…
-        assertEq(uint8(v.status()), uint8(Heirloom.Status.Active));
-        assertEq(uint8(v.agentState()), uint8(Heirloom.AgentState.Active)); // …and the agent works again
+        assertEq(uint8(v.status()), uint8(Custos.Status.Active));
+        assertEq(uint8(v.agentState()), uint8(Custos.AgentState.Active)); // …and the agent works again
         _spendEth(1 ether);
     }
 
@@ -455,18 +455,18 @@ contract AgentFreezeTest is AgentBase {
 
     function test_guardianFreeze_onlyWhenOwnerLate() public {
         vm.prank(g1);
-        vm.expectRevert(Heirloom.NotYetExpired.selector);
+        vm.expectRevert(Custos.NotYetExpired.selector);
         v.guardianFreezeAgent(); // owner is current: a guardian cannot grief the agent
         vm.warp(v.expiry() + 1); // late, still inside the agent's late allowance
         _spendEth(1);
         vm.prank(g1);
         v.guardianFreezeAgent();
-        assertEq(uint8(v.agentState()), uint8(Heirloom.AgentState.FrozenByGuardian));
+        assertEq(uint8(v.agentState()), uint8(Custos.AgentState.FrozenByGuardian));
         vm.prank(agent);
-        vm.expectRevert(Heirloom.AgentIsFrozen.selector);
+        vm.expectRevert(Custos.AgentIsFrozen.selector);
         v.agentSpend(address(0), vendor, 1);
         vm.prank(g2);
-        vm.expectRevert(Heirloom.NothingToDo.selector);
+        vm.expectRevert(Custos.NothingToDo.selector);
         v.guardianFreezeAgent();
     }
 
@@ -476,22 +476,22 @@ contract AgentFreezeTest is AgentBase {
         v.guardianFreezeAgent();
         vm.prank(owner);
         v.checkIn();
-        assertEq(uint8(v.agentState()), uint8(Heirloom.AgentState.Active));
+        assertEq(uint8(v.agentState()), uint8(Custos.AgentState.Active));
         _spendEth(1);
     }
 
     function test_guardianFreeze_accessControl() public {
         vm.warp(v.expiry() + 1);
         vm.prank(rando);
-        vm.expectRevert(Heirloom.NotGuardian.selector);
+        vm.expectRevert(Custos.NotGuardian.selector);
         v.guardianFreezeAgent();
         vm.prank(agent);
-        vm.expectRevert(Heirloom.NotGuardian.selector);
+        vm.expectRevert(Custos.NotGuardian.selector);
         v.guardianFreezeAgent();
         vm.prank(owner);
         v.revokeAgent();
         vm.prank(g1);
-        vm.expectRevert(Heirloom.NoAgent.selector);
+        vm.expectRevert(Custos.NoAgent.selector);
         v.guardianFreezeAgent();
     }
 
@@ -500,31 +500,31 @@ contract AgentFreezeTest is AgentBase {
         v.pause(60 days);
         vm.warp(block.timestamp + 40 days);
         vm.prank(g1);
-        vm.expectRevert(Heirloom.NotYetExpired.selector);
+        vm.expectRevert(Custos.NotYetExpired.selector);
         v.guardianFreezeAgent();
     }
 
     function test_ownerKillSwitch_survivesCheckIns() public {
         vm.prank(owner);
         v.freezeAgent();
-        assertEq(uint8(v.agentState()), uint8(Heirloom.AgentState.FrozenByOwner));
+        assertEq(uint8(v.agentState()), uint8(Custos.AgentState.FrozenByOwner));
         vm.prank(owner);
         v.checkIn();
         vm.prank(agent);
-        vm.expectRevert(Heirloom.AgentIsFrozen.selector);
+        vm.expectRevert(Custos.AgentIsFrozen.selector);
         v.agentSpend(address(0), vendor, 1);
         vm.prank(owner);
         v.unfreezeAgent();
         _spendEth(1);
         vm.prank(owner);
-        vm.expectRevert(Heirloom.NothingToDo.selector);
+        vm.expectRevert(Custos.NothingToDo.selector);
         v.unfreezeAgent();
     }
 
     function test_ownerFreezeNoAgent() public {
         vm.startPrank(owner);
         v.revokeAgent();
-        vm.expectRevert(Heirloom.NoAgent.selector);
+        vm.expectRevert(Custos.NoAgent.selector);
         v.freezeAgent();
         vm.stopPrank();
     }
@@ -535,7 +535,7 @@ contract AgentFreezeTest is AgentBase {
         vm.warp(v.expiry() + 1);
         _spendEth(1);
         vm.warp(ge + 1);
-        assertEq(uint8(v.status()), uint8(Heirloom.Status.AwaitingGuardians));
+        assertEq(uint8(v.status()), uint8(Custos.Status.AwaitingGuardians));
     }
 }
 
@@ -544,43 +544,43 @@ contract AgentCompromisedKeyTest is AgentBase {
         address[] memory gs = new address[](1);
         gs[0] = rando;
         vm.startPrank(agent);
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.checkIn();
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.cancelRelease();
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.pause(1 days);
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.setBeneficiary(agent);
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.setTimings(1 days, 1 days, 1 days, 0);
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.setGuardians(gs, 1);
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.replaceGuardian(g1, agent);
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.addToken(address(usdc));
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.withdrawNative(1);
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.withdrawToken(address(usdc), 1);
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.closeVault();
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.setAgent(agent, 365 days, 365 days);
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.setAssetLimit(address(0), type(uint128).max, type(uint128).max);
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.setRecipient(agent, true);
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.unfreezeAgent();
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.setSuccessor(agent);
-        vm.expectRevert(Heirloom.NotGuardian.selector);
+        vm.expectRevert(Custos.NotGuardian.selector);
         v.approveRelease();
-        vm.expectRevert(Heirloom.NotGuardian.selector);
-        v.approveOutcome(Heirloom.Outcome.Handover);
-        vm.expectRevert(Heirloom.NotGuardian.selector);
+        vm.expectRevert(Custos.NotGuardian.selector);
+        v.approveOutcome(Custos.Outcome.Handover);
+        vm.expectRevert(Custos.NotGuardian.selector);
         v.guardianFreezeAgent();
         vm.stopPrank();
     }
@@ -612,9 +612,9 @@ contract AgentCompromisedKeyTest is AgentBase {
 
     function test_agentCannotPayItselfOrAnOutsider() public {
         vm.startPrank(agent);
-        vm.expectRevert(Heirloom.RecipientNotAllowed.selector);
+        vm.expectRevert(Custos.RecipientNotAllowed.selector);
         v.agentSpend(address(0), agent, 1);
-        vm.expectRevert(Heirloom.RecipientNotAllowed.selector);
+        vm.expectRevert(Custos.RecipientNotAllowed.selector);
         v.agentSpend(address(usdc), rando, 1);
         vm.stopPrank();
     }
@@ -623,7 +623,7 @@ contract AgentCompromisedKeyTest is AgentBase {
         MockERC20 other = new MockERC20();
         other.mint(address(v), 1_000e6);
         vm.prank(agent);
-        vm.expectRevert(Heirloom.AssetNotAllowed.selector);
+        vm.expectRevert(Custos.AssetNotAllowed.selector);
         v.agentSpend(address(other), vendor, 1);
     }
 
@@ -631,7 +631,7 @@ contract AgentCompromisedKeyTest is AgentBase {
         vm.prank(owner);
         v.revokeAgent();
         vm.prank(agent);
-        vm.expectRevert(Heirloom.NotAgent.selector);
+        vm.expectRevert(Custos.NotAgent.selector);
         v.agentSpend(address(0), vendor, 1);
     }
 
@@ -647,7 +647,7 @@ contract AgentCompromisedKeyTest is AgentBase {
 
     function test_compromisedKeyCannotChangeBeneficiaryOrSuccessorEvenAsGuardianImpersonator() public {
         vm.prank(agent);
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.setSuccessor(rando);
         assertEq(v.successor(), successor);
         assertEq(v.beneficiary(), heir);
@@ -658,10 +658,10 @@ contract AgentHandoverTest is AgentBase {
     function test_handover_movesOwnershipAndKeepsFundsInVault() public {
         _lapse();
         uint256 bal = address(v).balance;
-        _vote(g1, Heirloom.Outcome.Handover);
-        _vote(g2, Heirloom.Outcome.Handover);
-        assertEq(uint8(v.pendingOutcome()), uint8(Heirloom.Outcome.Handover));
-        vm.expectRevert(Heirloom.ChallengeNotOver.selector);
+        _vote(g1, Custos.Outcome.Handover);
+        _vote(g2, Custos.Outcome.Handover);
+        assertEq(uint8(v.pendingOutcome()), uint8(Custos.Outcome.Handover));
+        vm.expectRevert(Custos.ChallengeNotOver.selector);
         v.executeRelease();
         vm.warp(block.timestamp + CHALLENGE);
         v.executeRelease();
@@ -673,22 +673,22 @@ contract AgentHandoverTest is AgentBase {
         assertEq(v.agentAssets().length, 0);
         assertEq(v.recipients().length, 0);
         assertEq(heir.balance, 0); // beneficiary did NOT get paid
-        assertEq(uint8(v.status()), uint8(Heirloom.Status.Active)); // fresh timer for the new owner
+        assertEq(uint8(v.status()), uint8(Custos.Status.Active)); // fresh timer for the new owner
         assertEq(v.lastCheckIn(), block.timestamp);
         assertFalse(v.released());
     }
 
     function test_afterHandover_oldOwnerLosesAllPowers_successorHasThem() public {
         _lapse();
-        _vote(g1, Heirloom.Outcome.Handover);
-        _vote(g2, Heirloom.Outcome.Handover);
+        _vote(g1, Custos.Outcome.Handover);
+        _vote(g2, Custos.Outcome.Handover);
         vm.warp(block.timestamp + CHALLENGE);
         v.executeRelease();
         vm.prank(owner);
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.withdrawNative(1 ether);
         vm.prank(owner);
-        vm.expectRevert(Heirloom.NotOwner.selector);
+        vm.expectRevert(Custos.NotOwner.selector);
         v.checkIn();
         vm.prank(successor);
         v.checkIn();
@@ -698,7 +698,7 @@ contract AgentHandoverTest is AgentBase {
         assertEq(successor.balance - before_, 5 ether);
         // the old agent is dead until the new owner re-authorises an agent
         vm.prank(agent);
-        vm.expectRevert(Heirloom.NotAgent.selector);
+        vm.expectRevert(Custos.NotAgent.selector);
         v.agentSpend(address(0), vendor, 1);
         address agent2 = makeAddr("agent2");
         vm.prank(successor);
@@ -713,14 +713,14 @@ contract AgentHandoverTest is AgentBase {
 
     function test_afterHandover_guardiansAndBeneficiaryStillProtectTheNewOwnersSwitch() public {
         _lapse();
-        _vote(g1, Heirloom.Outcome.Handover);
-        _vote(g2, Heirloom.Outcome.Handover);
+        _vote(g1, Custos.Outcome.Handover);
+        _vote(g2, Custos.Outcome.Handover);
         vm.warp(block.timestamp + CHALLENGE);
         v.executeRelease();
         // successor goes silent too → regular Release to the original beneficiary
         vm.warp(v.graceEnd() + 1);
-        _vote(g1, Heirloom.Outcome.Release);
-        _vote(g3, Heirloom.Outcome.Release);
+        _vote(g1, Custos.Outcome.Release);
+        _vote(g3, Custos.Outcome.Release);
         vm.warp(block.timestamp + CHALLENGE);
         uint256 bal = address(v).balance;
         v.executeRelease();
@@ -733,67 +733,67 @@ contract AgentHandoverTest is AgentBase {
         v.setSuccessor(address(0));
         _lapse();
         vm.prank(g1);
-        vm.expectRevert(Heirloom.NoSuccessor.selector);
-        v.approveOutcome(Heirloom.Outcome.Handover);
-        _vote(g1, Heirloom.Outcome.Release); // release still works
+        vm.expectRevert(Custos.NoSuccessor.selector);
+        v.approveOutcome(Custos.Outcome.Handover);
+        _vote(g1, Custos.Outcome.Release); // release still works
     }
 
     function test_handoverTooEarlyReverts() public {
         vm.warp(v.graceEnd());
         vm.prank(g1);
-        vm.expectRevert(Heirloom.NotYetExpired.selector);
-        v.approveOutcome(Heirloom.Outcome.Handover);
+        vm.expectRevert(Custos.NotYetExpired.selector);
+        v.approveOutcome(Custos.Outcome.Handover);
     }
 
     function test_splitVotesDoNotReachThreshold_untilAMajorityAgrees() public {
         _lapse();
-        _vote(g1, Heirloom.Outcome.Release);
-        _vote(g2, Heirloom.Outcome.Handover);
+        _vote(g1, Custos.Outcome.Release);
+        _vote(g2, Custos.Outcome.Handover);
         assertEq(v.approvalCount(), 2);
         assertEq(v.challengeEnd(), 0); // 2 total votes but no outcome has 2
-        _vote(g3, Heirloom.Outcome.Handover);
-        assertEq(uint8(v.pendingOutcome()), uint8(Heirloom.Outcome.Handover));
+        _vote(g3, Custos.Outcome.Handover);
+        assertEq(uint8(v.pendingOutcome()), uint8(Custos.Outcome.Handover));
         assertTrue(v.challengeEnd() != 0);
     }
 
     function test_withdrawingAVoteRemovesItFromItsOutcome() public {
         _lapse();
-        _vote(g1, Heirloom.Outcome.Handover);
+        _vote(g1, Custos.Outcome.Handover);
         vm.prank(g1);
         v.withdrawApproval();
-        _vote(g1, Heirloom.Outcome.Release);
-        _vote(g2, Heirloom.Outcome.Release);
-        assertEq(uint8(v.pendingOutcome()), uint8(Heirloom.Outcome.Release));
+        _vote(g1, Custos.Outcome.Release);
+        _vote(g2, Custos.Outcome.Release);
+        assertEq(uint8(v.pendingOutcome()), uint8(Custos.Outcome.Release));
     }
 
     function test_ownerReturningCancelsHandoverAndKeepsEverything() public {
         _lapse();
-        _vote(g1, Heirloom.Outcome.Handover);
-        _vote(g2, Heirloom.Outcome.Handover);
+        _vote(g1, Custos.Outcome.Handover);
+        _vote(g2, Custos.Outcome.Handover);
         vm.prank(owner);
         v.checkIn();
         assertEq(v.owner(), owner);
-        assertEq(uint8(v.pendingOutcome()), uint8(Heirloom.Outcome.Release));
-        vm.expectRevert(Heirloom.NotYetExpired.selector);
+        assertEq(uint8(v.pendingOutcome()), uint8(Custos.Outcome.Release));
+        vm.expectRevert(Custos.NotYetExpired.selector);
         v.executeRelease();
         _spendEth(1 ether); // agent is back
     }
 
     function test_ownerCanCancelEvenAfterChallengeWindowBeforeExecute() public {
         _lapse();
-        _vote(g1, Heirloom.Outcome.Handover);
-        _vote(g2, Heirloom.Outcome.Handover);
+        _vote(g1, Custos.Outcome.Handover);
+        _vote(g2, Custos.Outcome.Handover);
         vm.warp(block.timestamp + CHALLENGE + 5 days);
         vm.prank(owner);
         v.checkIn();
-        vm.expectRevert(Heirloom.NotYetExpired.selector);
+        vm.expectRevert(Custos.NotYetExpired.selector);
         v.executeRelease();
     }
 
     function test_changingSuccessorDuringChallengeCancelsIt() public {
         _lapse();
-        _vote(g1, Heirloom.Outcome.Handover);
-        _vote(g2, Heirloom.Outcome.Handover);
+        _vote(g1, Custos.Outcome.Handover);
+        _vote(g2, Custos.Outcome.Handover);
         vm.prank(owner);
         v.setSuccessor(rando);
         assertEq(v.challengeEnd(), 0);
@@ -802,8 +802,8 @@ contract AgentHandoverTest is AgentBase {
     function test_guardiansCannotChooseDestination() public {
         // the only reachable destinations are the beneficiary or the owner-named successor
         _lapse();
-        _vote(g1, Heirloom.Outcome.Handover);
-        _vote(g2, Heirloom.Outcome.Handover);
+        _vote(g1, Custos.Outcome.Handover);
+        _vote(g2, Custos.Outcome.Handover);
         vm.warp(block.timestamp + CHALLENGE);
         vm.prank(g3);
         v.executeRelease();
@@ -815,15 +815,15 @@ contract AgentHandoverTest is AgentBase {
         _spendEth(1 ether);
         _lapse();
         uint256 bal = address(v).balance;
-        _vote(g1, Heirloom.Outcome.Release);
-        _vote(g2, Heirloom.Outcome.Release);
+        _vote(g1, Custos.Outcome.Release);
+        _vote(g2, Custos.Outcome.Release);
         vm.warp(block.timestamp + CHALLENGE);
         v.executeRelease();
         assertEq(heir.balance, bal);
         assertEq(usdc.balanceOf(heir), 10_000e6);
-        assertEq(uint8(v.agentState()), uint8(Heirloom.AgentState.Stopped));
+        assertEq(uint8(v.agentState()), uint8(Custos.AgentState.Stopped));
         vm.prank(agent);
-        vm.expectRevert(Heirloom.Finished.selector);
+        vm.expectRevert(Custos.Finished.selector);
         v.agentSpend(address(0), vendor, 1);
     }
 
@@ -833,13 +833,13 @@ contract AgentHandoverTest is AgentBase {
         v.approveRelease();
         vm.prank(g2);
         v.approveRelease();
-        assertEq(uint8(v.pendingOutcome()), uint8(Heirloom.Outcome.Release));
-        assertEq(uint8(v.status()), uint8(Heirloom.Status.Challenge));
+        assertEq(uint8(v.pendingOutcome()), uint8(Custos.Outcome.Release));
+        assertEq(uint8(v.status()), uint8(Custos.Status.Challenge));
     }
 
     function test_cannotSetBeneficiaryToPendingSuccessor() public {
         vm.prank(owner);
-        vm.expectRevert(Heirloom.BadParams.selector);
+        vm.expectRevert(Custos.BadParams.selector);
         v.setBeneficiary(successor);
     }
 }
@@ -902,7 +902,7 @@ contract AgentReentrancyAndTokensTest is AgentBase {
         vm.startPrank(owner);
         v.setAssetLimit(address(t), 100e6, 200e6);
         vm.stopPrank();
-        t.setHook(address(v), abi.encodeCall(Heirloom.executeRelease, ()));
+        t.setHook(address(v), abi.encodeCall(Custos.executeRelease, ()));
         vm.prank(agent);
         v.agentSpend(address(t), vendor, 50e6);
         assertFalse(v.released());
@@ -914,7 +914,7 @@ contract AgentReentrancyAndTokensTest is AgentBase {
         vm.prank(owner);
         v.setAssetLimit(address(t), 100e6, 200e6);
         vm.prank(agent);
-        vm.expectRevert(Heirloom.TransferFailedErr.selector);
+        vm.expectRevert(Custos.TransferFailedErr.selector);
         v.agentSpend(address(t), vendor, 10e6);
         (, uint256 rem,) = v.agentAllowance(address(t));
         assertEq(rem, 200e6);
@@ -926,7 +926,7 @@ contract AgentReentrancyAndTokensTest is AgentBase {
         vm.prank(owner);
         v.setAssetLimit(address(t), 100e6, 200e6);
         vm.prank(agent);
-        vm.expectRevert(Heirloom.TransferFailedErr.selector);
+        vm.expectRevert(Custos.TransferFailedErr.selector);
         v.agentSpend(address(t), vendor, 10e6);
     }
 
@@ -936,7 +936,7 @@ contract AgentReentrancyAndTokensTest is AgentBase {
         vm.prank(owner);
         v.setAssetLimit(address(t), 100e6, 200e6);
         vm.prank(agent);
-        vm.expectRevert(Heirloom.TransferFailedErr.selector);
+        vm.expectRevert(Custos.TransferFailedErr.selector);
         v.agentSpend{gas: 2_000_000}(address(t), vendor, 10e6);
     }
 
@@ -946,7 +946,7 @@ contract AgentReentrancyAndTokensTest is AgentBase {
         vm.prank(owner);
         v.setAssetLimit(address(t), 100e6, 200e6);
         vm.prank(agent);
-        vm.expectRevert(Heirloom.TransferFailedErr.selector);
+        vm.expectRevert(Custos.TransferFailedErr.selector);
         v.agentSpend{gas: 2_000_000}(address(t), vendor, 10e6);
     }
 
@@ -965,7 +965,7 @@ contract AgentReentrancyAndTokensTest is AgentBase {
         vm.prank(owner);
         v.setRecipient(address(gb), true);
         vm.prank(agent);
-        vm.expectRevert(Heirloom.TransferFailedErr.selector);
+        vm.expectRevert(Custos.TransferFailedErr.selector);
         v.agentSpend{gas: 2_000_000}(address(0), address(gb), 1 ether);
     }
 
@@ -974,7 +974,7 @@ contract AgentReentrancyAndTokensTest is AgentBase {
         vm.prank(owner);
         v.setRecipient(address(pb), true);
         vm.prank(agent);
-        vm.expectRevert(Heirloom.TransferFailedErr.selector);
+        vm.expectRevert(Custos.TransferFailedErr.selector);
         v.agentSpend(address(0), address(pb), 1 ether);
     }
 
@@ -984,8 +984,8 @@ contract AgentReentrancyAndTokensTest is AgentBase {
         vm.prank(owner);
         v.setAssetLimit(address(t), 100e6, 200e6);
         _lapse();
-        _vote(g1, Heirloom.Outcome.Release);
-        _vote(g2, Heirloom.Outcome.Release);
+        _vote(g1, Custos.Outcome.Release);
+        _vote(g2, Custos.Outcome.Release);
         vm.warp(block.timestamp + CHALLENGE);
         uint256 bal = address(v).balance;
         v.executeRelease();
@@ -1028,7 +1028,7 @@ contract AgentFuzzTest is AgentBase {
         vm.warp(uint256(v.agentCutoff()) + extra);
         vm.roll(bn);
         vm.prank(agent);
-        vm.expectRevert(Heirloom.AgentIsFrozen.selector);
+        vm.expectRevert(Custos.AgentIsFrozen.selector);
         v.agentSpend(address(0), vendor, amount);
     }
 
@@ -1050,7 +1050,7 @@ contract AgentFuzzTest is AgentBase {
         }
         vm.prank(owner);
         v.checkIn();
-        assertEq(uint8(v.agentState()), uint8(Heirloom.AgentState.Active));
+        assertEq(uint8(v.agentState()), uint8(Custos.AgentState.Active));
         _spendEth(1);
     }
 
@@ -1061,7 +1061,7 @@ contract AgentFuzzTest is AgentBase {
         uint8[3] memory vs = [a % 2, b % 2, c % 2];
         for (uint256 i; i < 3; ++i) {
             vm.prank(gs[i]);
-            try v.approveOutcome(Heirloom.Outcome(vs[i])) {} catch {}
+            try v.approveOutcome(Custos.Outcome(vs[i])) {} catch {}
         }
         if (v.challengeEnd() != 0) {
             vm.warp(block.timestamp + CHALLENGE);

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Heirloom factory deploy helper for Robinhood Chain (testnet 46630 / mainnet 4663).
+# Custos factory deploy helper for Robinhood Chain (testnet 46630 / mainnet 4663).
 #
 #   DRY-RUN is the DEFAULT: forge only SIMULATES, nothing is signed or sent.
 #   Real send needs --broadcast AND a typed confirmation.
@@ -10,9 +10,9 @@
 #
 # Examples
 #   scripts/deploy-robinhood.sh testnet --sender 0xYourAddr                       # simulate on testnet
-#   scripts/deploy-robinhood.sh testnet --account heirloom-test --broadcast       # real testnet deploy (prompts for keystore password via forge)
+#   scripts/deploy-robinhood.sh testnet --account custos-test --broadcast       # real testnet deploy (prompts for keystore password via forge)
 #   scripts/deploy-robinhood.sh testnet --ledger --broadcast --verify
-#   HEIRLOOM_MAINNET_OK=yes scripts/deploy-robinhood.sh mainnet --ledger --broadcast --verify   # ONLY after the checklist
+#   CUSTOS_MAINNET_OK=yes scripts/deploy-robinhood.sh mainnet --ledger --broadcast --verify   # ONLY after the checklist
 set -euo pipefail
 export PATH="$PATH:$HOME/.foundry/bin"
 cd "$(dirname "$0")/../contracts"
@@ -46,8 +46,8 @@ if [ "$broadcast" = 1 ]; then
 else
   [ -n "$signer_kind$sender" ] || die "dry-run needs --sender 0xYourPublicAddress (or --account/--ledger)"
 fi
-if [ "$net" = mainnet ] && [ "$broadcast" = 1 ] && [ "${HEIRLOOM_MAINNET_OK:-}" != "yes" ]; then
-  die "mainnet broadcast needs HEIRLOOM_MAINNET_OK=yes (confirm you completed docs/DEPLOY-ROBINHOOD.md checklist: audit + testnet soak)."
+if [ "$net" = mainnet ] && [ "$broadcast" = 1 ] && [ "${CUSTOS_MAINNET_OK:-}" != "yes" ]; then
+  die "mainnet broadcast needs CUSTOS_MAINNET_OK=yes (confirm you completed docs/DEPLOY-ROBINHOOD.md checklist: audit + testnet soak)."
 fi
 
 echo "network: Robinhood Chain $net (expected chain id $CHAIN_ID)  rpc: $RPC"

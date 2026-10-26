@@ -1,8 +1,8 @@
-# Heirloom
+# Custos
 
-> **A dead-man's switch for AI agents and their owners.**  <!-- name + tagline: see docs/BRAND.md -->
+> **A guardian for your AI agent.** A dead-man's switch for AI agents and their owners.  <!-- name + tagline: see docs/BRAND.md -->
 
-Heirloom is **security and custody tooling**: a **non-custodial dead-man's switch** designed for **Robinhood Chain** (an Arbitrum Orbit L2,
+Custos is **security and custody tooling**: a **non-custodial dead-man's switch** designed for **Robinhood Chain** (an Arbitrum Orbit L2,
 mainnet chain id 4663, testnet 46630, ETH gas).
 
 * **For AI agents.** Your AI agent holds a wallet/budget through the vault, with hard limits enforced by the contract: per-payment and
@@ -19,7 +19,7 @@ There is **no token** and nothing in this repo makes any claim about price or re
 
 | Part | Where | What |
 |---|---|---|
-| Smart contracts | [`contracts/`](contracts) | `Heirloom` (per-owner vault with the AI-agent layer), `HeirloomFactory`, `IGuardianStaking` stub. Foundry. |
+| Smart contracts | [`contracts/`](contracts) | `Custos` (per-owner vault with the AI-agent layer), `CustosFactory`, `IGuardianStaking` stub. Foundry. |
 | Check-in assistant | [`agent/`](agent) | Node/TypeScript: the face of the product. Deterministic scheduler + escalation, **watches the managed AI agent (mock adapter) and tells the owner in plain language** when it spends, nears a limit, is blocked or frozen; adapters (mock/console/Telegram), LLM *wording only* with a rules fallback, web check-in link server. |
 | Demo web app | [`web/`](web) | Next.js: landing, setup wizard (incl. **Your AI agent** step), dashboard with agent activity, budget, FROZEN state and guardian actions, **Fast-forward time** simulation (clearly labelled), optional viem wallet panel. |
 | Docs | [`PLAN.md`](PLAN.md), [`docs/BRAND.md`](docs/BRAND.md), [`docs/DEPLOY-ROBINHOOD.md`](docs/DEPLOY-ROBINHOOD.md), [`docs/token-design.md`](docs/token-design.md) | Architecture + threat model; **step-by-step Robinhood Chain deploy/verify guide + checklist** (instructions only); optional token design (not implemented). |
@@ -35,7 +35,7 @@ bash scripts/test-all.sh
 
 # 1) contracts  (forge-std is vendored in contracts/lib; or: forge install foundry-rs/forge-std --no-git)
 cd contracts && forge test            # 158 tests (unit, scenario, fuzz, reentrancy, hostile tokens, AI-agent layer, Robinhood-chain timing)
-forge coverage --report summary       # 100% lines on src/Heirloom.sol and the factory
+forge coverage --report summary       # 100% lines on src/Custos.sol and the factory
 
 # 2) agent (no credentials needed)
 cd agent && npm install
@@ -62,8 +62,8 @@ bash scripts/deploy-robinhood.sh testnet --sender 0xYourPublicAddress   # simula
 
 Renaming the product: `bash scripts/rename-product.sh <Name>` (see [`docs/BRAND.md`](docs/BRAND.md)).
 
-Optional environment (see `.env.example`): `ANTHROPIC_API_KEY`, `TELEGRAM_BOT_TOKEN`, `HEIRLOOM_LINK_SECRET`,
-`HEIRLOOM_STATE`, `HEIRLOOM_RPC_URL` (Robinhood RPC, read-only). **None are needed**; with none set, the agent runs in mock mode with rules-based wording.
+Optional environment (see `.env.example`): `ANTHROPIC_API_KEY`, `TELEGRAM_BOT_TOKEN`, `CUSTOS_LINK_SECRET`,
+`CUSTOS_STATE`, `CUSTOS_RPC_URL` (Robinhood RPC, read-only). **None are needed**; with none set, the agent runs in mock mode with rules-based wording.
 
 ## How it works
 
@@ -99,8 +99,8 @@ check-in ─── interval ───┬─── grace ───┬─ guardian
                          └ deadline    └ graceEnd                  └ threshold reached  └ funds → beneficiary
 ```
 
-### Contract design (`contracts/src/Heirloom.sol`)
-* **One vault per owner** via `HeirloomFactory.create(params)`; blast radius of a bug is one vault. No admin, no upgrade,
+### Contract design (`contracts/src/Custos.sol`)
+* **One vault per owner** via `CustosFactory.create(params)`; blast radius of a bug is one vault. No admin, no upgrade,
   no fees, no external dependencies (no OpenZeppelin), no oracle: time is `block.timestamp`, **never `block.number`** (on Robinhood Chain it is only an estimate of the *L1* block number).
 * **Asset model: deposit.** Owner deposits ETH (plain transfer) and listed ERC-20s such as stablecoins (`depositToken`, which pulls with an
   allowance to *this vault only*) and can withdraw any time while alive. Chosen over the "approval/pull" model because
@@ -169,7 +169,7 @@ check-in ─── interval ───┬─── grace ───┬─ guardian
 ## Limitations / known gaps
 * **Unaudited.** No formal verification; fuzz + mutation-checked unit tests only.
 * **Not deployed anywhere**, including Robinhood testnet; only tested on local Foundry/anvil (chain 31337, and a local anvil posing as chain 46630). The web app has **no
-  deploy-from-wizard flow**: the wizard configures the *simulation*. Real deployment is by `HeirloomFactory.create(...)` with
+  deploy-from-wizard flow**: the wizard configures the *simulation*. Real deployment is by `CustosFactory.create(...)` with
   the owner's own signer.
 * Telegram adapter and Claude adapter are tested with mocked HTTP only; never run against the live APIs here. No email/SMS adapters yet.
 * ERC-20 support assumes sane tokens; rebasing/fee-on-transfer tokens are handled on deposit only by balance delta; ERC-777/hook
@@ -188,7 +188,7 @@ check-in ─── interval ───┬─── grace ───┬─ guardian
 
 ## Project layout
 ```
-contracts/  src/{Heirloom,HeirloomFactory,Brand}.sol  src/interfaces/  test/  script/{Deploy,DeployRobinhood}.s.sol
+contracts/  src/{Custos,CustosFactory,Brand}.sol  src/interfaces/  test/  script/{Deploy,DeployRobinhood}.s.sol
 agent/      src/{brand,chainModel,engine,explain,wording,managed,agent,channels,chain,store,server,cli}.ts  test/  examples/
 web/        app/{page,setup,dashboard}  components/  lib/{brand,sim,robinhood}.ts  lib/agent/ (synced copy)  scripts/shots.mjs
 scripts/    test-all.sh  anvil-e2e.sh  sync-model.sh  deploy-robinhood.sh  rename-product.sh
