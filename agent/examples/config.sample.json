@@ -1,0 +1,19 @@
+{
+  "baseUrl": "http://localhost:8787",
+  "port": 8787,
+  "tickSeconds": 60,
+  "mode": "sim",
+  "sim": { "intervalDays": 30, "graceDays": 7, "challengeDays": 3, "threshold": 2 },
+  "profiles": [
+    {
+      "id": "demo-ada",
+      "owner": { "id": "ada", "name": "Ada", "endpoints": [{ "channel": "console", "address": "ada" }] },
+      "beneficiary": { "id": "emeka", "name": "Emeka", "endpoints": [{ "channel": "console", "address": "emeka" }] },
+      "guardians": [
+        { "id": "bola", "name": "Bola", "endpoints": [{ "channel": "console", "address": "bola" }] },
+        { "id": "chidi", "name": "Chidi", "endpoints": [{ "channel": "console", "address": "chidi" }] },
+        { "id": "dayo", "name": "Dayo", "endpoints": [{ "channel": "console", "address": "dayo" }] }
+      ]
+    }
+  ]
+}

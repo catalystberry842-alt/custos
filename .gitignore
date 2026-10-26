@@ -1,0 +1,12 @@
+node_modules/
+.next/
+out/
+cache/
+broadcast/
+next-env.d.ts
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+*.tmp
+heirloom-state.json

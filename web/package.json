@@ -1,0 +1,28 @@
+{
+  "name": "heirloom-web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "sync-model": "bash ../scripts/sync-model.sh",
+    "predev": "npm run sync-model",
+    "prebuild": "npm run sync-model",
+    "dev": "next dev -p 3100",
+    "build": "next build",
+    "start": "next start -p 3100",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "next": "^15.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "playwright": "^1.64.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}
