@@ -86,17 +86,27 @@ export default function Setup() {
 
   return (
     <main className="wrap">
-      <div className="stack" style={{ padding: "12px 0 28px" }}>
-        <SimBanner text="Setup only configures the local simulation. Nothing is deployed." />
-        <div className="step-ind">{STEPS.map((_, i) => <i key={i} className={i <= step ? "on" : ""} />)}</div>
+      <div className="app" style={{ maxWidth: 720, margin: "0 auto" }}>
+        <div className="app-head">
+          <h2>Set up your guardian</h2>
+          <SimBanner text="Configures the local simulation only." />
+        </div>
+        <ol className="steps-bar" aria-label="Progress" style={{ listStyle: "none", padding: 0, margin: 0 }}>
+          {STEPS.map((n, i) => (
+            <li key={n} className={`stp ${i < step ? "done" : i === step ? "cur" : ""}`} aria-current={i === step ? "step" : undefined}>
+              <i /><span>{i + 1}. {n.replace("Your AI agent", "Agent")}</span>
+            </li>
+          ))}
+        </ol>
+        <div className="glass pad stack" style={{ gap: 18, padding: 22 }}>
         <div className="row between">
-          <h2>{STEPS[step]}</h2>
-          <span className="s mut">Step {step + 1} of {STEPS.length}</span>
+          <h3 style={{ fontSize: "var(--t-md)" }}>{STEPS[step]}</h3>
+          <span className="xs mut">Step {step + 1} of {STEPS.length}</span>
         </div>
 
         {name === "Your AI agent" && (
           <div className="stack">
-            <p className="mut">Give your AI agent a wallet with hard limits. The limits live in the contract, so even a hacked or confused agent cannot go past them.</p>
+            <p className="mut lede">Give your AI agent a wallet with hard limits. The limits live in the contract, so even a hacked or confused agent cannot go past them.</p>
             <div className="row">
               <button className={`chip ${ag ? "on" : ""}`} onClick={() => !ag && set({ agent: { ...DEFAULT_CFG.agent!, recipients: [...DEFAULT_CFG.agent!.recipients] } })}>I have an AI agent</button>
               <button className={`chip ${!ag ? "on" : ""}`} onClick={() => set({ agent: PLAIN_CFG.agent })}>Skip: plain vault</button>
@@ -104,17 +114,17 @@ export default function Setup() {
             {ag && (
               <>
                 <div className="field">
-                  <label className="s mut" htmlFor="agname">Agent name</label>
+                  <label className="lbl" htmlFor="agname">Agent name</label>
                   <input id="agname" className="input" value={ag.name} onChange={(e) => setAgent({ name: e.target.value })} />
                 </div>
-                <div className="field"><span className="s mut">Max per payment</span><Chips value={ag.perTx} options={[10, 25, 50, 100, 250]} suffix="" prefix="$" onChange={(n) => setAgent({ perTx: n })} /></div>
+                <div className="field"><span className="lbl">Max per payment</span><Chips value={ag.perTx} options={[10, 25, 50, 100, 250]} suffix="" prefix="$" onChange={(n) => setAgent({ perTx: n })} /></div>
                 <div className="field">
-                  <span className="s mut">Budget per {ag.periodDays === 1 ? "day" : "week"}</span>
+                  <span className="lbl">Budget per {ag.periodDays === 1 ? "day" : "week"}</span>
                   <Chips value={ag.perPeriod} options={[50, 100, 200, 500, 1000]} suffix="" prefix="$" onChange={(n) => setAgent({ perPeriod: n })} />
-                  <div className="row"><button className={`chip ${ag.periodDays === 1 ? "on" : ""}`} onClick={() => setAgent({ periodDays: 1 })}>per day</button><button className={`chip ${ag.periodDays === 7 ? "on" : ""}`} onClick={() => setAgent({ periodDays: 7 })}>per week</button><span className="s dim">in {ag.asset}</span></div>
+                  <div className="row"><button className={`chip ${ag.periodDays === 1 ? "on" : ""}`} onClick={() => setAgent({ periodDays: 1 })}>per day</button><button className={`chip ${ag.periodDays === 7 ? "on" : ""}`} onClick={() => setAgent({ periodDays: 7 })}>per week</button><span className="xs dim">in {ag.asset}</span></div>
                 </div>
                 <div className="field">
-                  <span className="s mut">Allowed payees (anyone else is blocked)</span>
+                  <span className="lbl">Allowed payees (anyone else is blocked)</span>
                   <div className="chips">
                     {ag.recipients.map((r) => (
                       <button key={r} className="chip on" onClick={() => setAgent({ recipients: ag.recipients.filter((x) => x !== r) })} aria-label={`Remove ${r}`}>{r} ✕</button>
@@ -126,16 +136,16 @@ export default function Setup() {
                   </div>
                 </div>
                 <div className="field">
-                  <span className="s mut">If you go silent, freeze the agent</span>
+                  <span className="lbl">If you go silent, freeze the agent</span>
                   <div className="row wrapflex">
                     <button className={`chip ${ag.freezeAt === "grace" ? "on" : ""}`} onClick={() => setAgent({ freezeAt: "grace" })}>when grace ends</button>
                     <button className={`chip ${ag.freezeAt === "deadline" ? "on" : ""}`} onClick={() => setAgent({ freezeAt: "deadline" })}>at the deadline</button>
                   </div>
                 </div>
                 <div className="field">
-                  <label className="s mut" htmlFor="succ">Successor (gets the vault if guardians hand over)</label>
+                  <label className="lbl" htmlFor="succ">Successor (gets the vault if guardians hand over)</label>
                   <input id="succ" className="input" placeholder="Name, e.g. a co-founder or a second wallet of yours" value={ag.successorName} onChange={(e) => setAgent({ successorName: e.target.value })} />
-                  <span className="s dim">Guardians can only pick between this successor and the beneficiary. They can never choose a new destination.</span>
+                  <span className="xs dim">Guardians can only pick between this successor and the beneficiary. They can never choose a new destination.</span>
                 </div>
               </>
             )}
@@ -144,9 +154,9 @@ export default function Setup() {
 
         {name === "Guardians" && (
           <div className="stack">
-            <p className="mut">Pick people who know you and don&apos;t know each other well. They can only vote on a release, never choose where funds go.</p>
+            <p className="mut lede">Pick people who know you and don&apos;t know each other well. They can only vote on a release, never choose where funds go.</p>
             <div className="field">
-              <label className="s mut" htmlFor="owner">Your name</label>
+              <label className="lbl" htmlFor="owner">Your name</label>
               <input id="owner" className="input" value={cfg.ownerName} onChange={(e) => set({ ownerName: e.target.value })} />
             </div>
             <div className="stack" style={{ gap: 6 }}>
@@ -160,45 +170,45 @@ export default function Setup() {
               <button className="btn sm" style={{ alignSelf: "flex-start" }} onClick={addGuardian} disabled={cfg.guardians.length >= 7}>+ Add guardian</button>
             </div>
             <div className="field">
-              <span className="s mut">Approvals needed</span>
+              <span className="lbl">Approvals needed</span>
               <div className="row">
                 <button className="btn sm" onClick={() => set({ threshold: Math.max(1, cfg.threshold - 1) })} aria-label="Fewer approvals">−</button>
-                <span style={{ minWidth: 70, textAlign: "center" }}><b>{cfg.threshold}</b> of <b>{cfg.guardians.length}</b></span>
+                <span style={{ minWidth: 70, textAlign: "center" }}><span className="big" style={{ fontSize: "var(--t-md)" }}>{cfg.threshold} of {cfg.guardians.length}</span></span>
                 <button className="btn sm" onClick={() => set({ threshold: Math.min(cfg.guardians.length, cfg.threshold + 1) })} aria-label="More approvals">+</button>
               </div>
-              <span className="s dim">Tip: 2-of-3 or 3-of-5 balances safety and lost-key tolerance.</span>
+              <span className="xs dim">Tip: 2-of-3 or 3-of-5 balances safety and lost-key tolerance.</span>
             </div>
           </div>
         )}
 
         {name === "Beneficiary" && (
           <div className="stack">
-            <p className="mut">The one person (or wallet) who receives everything on release. You can change this any time while you&apos;re active.</p>
+            <p className="mut lede">The one person (or wallet) who receives everything on release. You can change this any time while you&apos;re active.</p>
             <div className="field">
-              <label className="s mut" htmlFor="ben">Beneficiary name</label>
+              <label className="lbl" htmlFor="ben">Beneficiary name</label>
               <input id="ben" className="input" value={cfg.beneficiaryName} onChange={(e) => set({ beneficiaryName: e.target.value })} />
             </div>
             <div className="field">
-              <label className="s mut" htmlFor="benaddr">Beneficiary wallet (0x…, optional in demo)</label>
+              <label className="lbl" htmlFor="benaddr">Beneficiary wallet (0x…, optional in demo)</label>
               <input id="benaddr" className={`input ${cfg.beneficiaryAddress && !isAddr(cfg.beneficiaryAddress) ? "bad" : ""}`} placeholder="0x…" value={cfg.beneficiaryAddress ?? ""} onChange={(e) => set({ beneficiaryAddress: e.target.value.trim() })} />
-              <span className="s dim">Use a wallet they control (EOA or Safe). Never share seed phrases here.</span>
+              <span className="xs dim">Use a wallet they control (EOA or Safe). Never share seed phrases here.</span>
             </div>
           </div>
         )}
 
         {name === "Timing" && (
           <div className="stack">
-            <div className="field"><span className="s mut">Check in at least every</span><Chips value={cfg.intervalDays} options={[7, 14, 30, 60, 90]} onChange={(n) => set({ intervalDays: n })} /></div>
-            <div className="field"><span className="s mut">Grace period after a missed check-in</span><Chips value={cfg.graceDays} options={[3, 7, 14, 30]} onChange={(n) => set({ graceDays: n })} /></div>
-            <div className="field"><span className="s mut">Final challenge window</span><Chips value={cfg.challengeDays} options={[1, 3, 7, 14]} onChange={(n) => set({ challengeDays: n })} /></div>
-            <div className="field"><span className="s mut">Guardian-less fallback (beneficiary can claim if guardians vanish)</span><Chips value={cfg.fallbackDays} options={[0, 30, 60, 90]} onChange={(n) => set({ fallbackDays: n })} /></div>
-            <p className="s dim">Earliest possible release if you vanish today: {cfg.intervalDays + cfg.graceDays + cfg.challengeDays} days.</p>
+            <div className="field"><span className="lbl">Check in at least every</span><Chips value={cfg.intervalDays} options={[7, 14, 30, 60, 90]} onChange={(n) => set({ intervalDays: n })} /></div>
+            <div className="field"><span className="lbl">Grace period after a missed check-in</span><Chips value={cfg.graceDays} options={[3, 7, 14, 30]} onChange={(n) => set({ graceDays: n })} /></div>
+            <div className="field"><span className="lbl">Final challenge window</span><Chips value={cfg.challengeDays} options={[1, 3, 7, 14]} onChange={(n) => set({ challengeDays: n })} /></div>
+            <div className="field"><span className="lbl">Guardian-less fallback (beneficiary can claim if guardians vanish)</span><Chips value={cfg.fallbackDays} options={[0, 30, 60, 90]} onChange={(n) => set({ fallbackDays: n })} /></div>
+            <p className="xs dim">Earliest possible release if you vanish today: {cfg.intervalDays + cfg.graceDays + cfg.challengeDays} days.</p>
           </div>
         )}
 
         {name === "Review" && (
           <div className="stack">
-            <div className="card stack" style={{ gap: 6 }}>
+            <div className="stack" style={{ gap: 8 }}>
               <div className="row between"><span className="mut">Owner</span><b>{cfg.ownerName || "You"}</b></div>
               <hr className="hr" />
               {ag ? (
@@ -221,13 +231,14 @@ export default function Setup() {
               <div className="row between"><span className="mut">Interval / grace / challenge</span><b>{cfg.intervalDays}d / {cfg.graceDays}d / {cfg.challengeDays}d</b></div>
               <div className="row between"><span className="mut">Fallback</span><b>{cfg.fallbackDays ? `${cfg.fallbackDays}d` : "Off"}</b></div>
             </div>
-            {warnings.map((w) => <p key={w} className="s accent">⚠ {w}</p>)}
-            <p className="s dim">Starting runs the <b>simulation</b>. A real vault needs the contracts deployed to Robinhood Chain after an audit and a testnet trial (see docs/DEPLOY-ROBINHOOD.md).</p>
+            {warnings.map((w) => <p key={w} className="note">{w}</p>)}
+            <p className="xs dim">Starting runs the <b>simulation</b>. A real vault needs the contracts deployed to Robinhood Chain after an audit and a testnet trial (see docs/DEPLOY-ROBINHOOD.md).</p>
           </div>
         )}
 
-        {hardErrors.map((e) => <p key={e} className="s accent">⚠ {e}</p>)}
+        {hardErrors.map((e) => <p key={e} className="note bad">{e}</p>)}
 
+        </div>
         <div className="row between">
           <button className="btn" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0}>Back</button>
           {step < STEPS.length - 1 ? (

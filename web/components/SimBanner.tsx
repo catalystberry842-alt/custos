@@ -1,8 +1,9 @@
+/** Small, elegant SIMULATION label. `text` shows as a quiet caption from tablet width up. */
 export default function SimBanner({ text }: { text?: string }) {
   return (
-    <div className="sim" role="note">
-      <b>SIMULATION</b>
-      <span>{text ?? "Local demo with fake data. Nothing is on-chain, no wallet, no funds."}</span>
+    <div className="row wrapflex" role="note" style={{ gap: 10 }}>
+      <span className="badge sim"><i />Simulation</span>
+      {text && <span className="xs dim">{text}</span>}
     </div>
   );
 }

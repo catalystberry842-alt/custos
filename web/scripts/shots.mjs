@@ -11,6 +11,7 @@ for (const [tag, vp, dpr, mobile] of [["mobile", { width: 390, height: 844 }, 2,
   const shot = async (n, full = true) => { if (!full) await p.evaluate(() => window.scrollTo(0, 0)); return p.screenshot({ path: `${out}/${tag}-${n}.png`, fullPage: full }); };
 
   await p.goto(base + "/", { waitUntil: "networkidle" });
+  await p.waitForTimeout(8200); // let the hero loop reach the freeze/vote moment
   await shot("01-landing", false);
   await shot("01-landing-full");
 

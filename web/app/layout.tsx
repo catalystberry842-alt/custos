@@ -1,27 +1,22 @@
 import type { Metadata, Viewport } from "next";
-import Link from "next/link";
-import { BRAND } from "@/lib/brand";
 import "./globals.css";
+import "./motion.css";
+import SiteHeader from "@/components/SiteHeader";
+import { THEME_INIT } from "@/components/ThemeToggle";
+import { BRAND } from "@/lib/brand";
 
 export const metadata: Metadata = {
   title: `${BRAND.name}: ${BRAND.tagline}`,
   description: `${BRAND.blurb} Non-custodial, built for Robinhood Chain. Security tooling, simulation demo.`,
 };
-export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#0b0b0c" };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#070A12" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" data-theme="dark" suppressHydrationWarning>
+      <head><script dangerouslySetInnerHTML={{ __html: THEME_INIT }} /></head>
       <body>
-        <header className="top">
-          <div className="wrap wide">
-            <Link href="/" className="logo"><i /> {BRAND.name}</Link>
-            <nav className="nav">
-              <Link href="/setup">Setup</Link>
-              <Link href="/dashboard">Demo</Link>
-            </nav>
-          </div>
-        </header>
+        <SiteHeader />
         {children}
       </body>
     </html>

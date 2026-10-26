@@ -2,7 +2,10 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import Gauge from "@/components/Gauge";
+import { Mark } from "@/components/Logo";
 import SimBanner from "@/components/SimBanner";
+import Timeline from "@/components/Timeline";
 import {
   advanceBy, agentPay, agentView, countdownTarget, DAY, formatCountdown, guardianApprove, guardianFreeze, HOUR, initSim, loadSim,
   nextSuggestion, ownerCheckIn, ownerFreeze, pauseVault, saveSim, statusOf, executeRelease, type FeedItem, type SimState,
@@ -12,7 +15,7 @@ import { BRAND } from "@/lib/brand";
 import type { AgentState } from "@/lib/agent/chainModel";
 import { anchor, expiry, graceEnd, type Status } from "@/lib/agent/chainModel";
 
-const WalletPanel = dynamic(() => import("@/components/WalletPanel"), { ssr: false, loading: () => <p className="s dim">Loading wallet tools…</p> });
+const WalletPanel = dynamic(() => import("@/components/WalletPanel"), { ssr: false, loading: () => <p className="xs dim">Loading wallet tools…</p> });
 
 const STATUS_LABEL: Record<Status, string> = {
   active: "Active", grace: "Overdue · grace", awaiting_guardians: "Guardians may vote", challenge: "Challenge window",
@@ -46,17 +49,38 @@ const short = (t: number) => { const d = new Date(t); return `${d.getUTCDate()} 
 
 function Feed({ items }: { items: FeedItem[] }) {
   return (
-    <div className="feed">
-      {items.map((f) => (
-        <div key={f.id} className={`fi ${f.urgent ? "urgent" : ""}`}>
-          <div className="h"><b style={{ fontWeight: 600 }}>{f.title}</b><span className="s dim">{short(f.t)}</span></div>
-          <span className="kind">{f.kind === "agent" ? "check-in assistant (simulated)" : f.kind === "chain" ? "contract event (simulated)" : f.kind === "you" ? "owner action" : "system"}</span>
-          {f.body && <p className="body">{f.body}</p>}
-          {f.steps && f.steps.length > 0 && (
-            <details><summary>What happens next ▾</summary><ul>{f.steps.map((x, i) => <li key={i}>{x}</li>)}</ul></details>
-          )}
-        </div>
-      ))}
+    <div className="chat">
+      {items.map((f) => {
+        const when = short(f.t);
+        const steps = f.steps && f.steps.length > 0 && (
+          <details><summary>What happens next</summary><ul>{f.steps.map((x, i) => <li key={i}>{x}</li>)}</ul></details>
+        );
+        if (f.kind === "you") {
+          return (
+            <div key={f.id} className="msg me"><div className="bub"><div className="who"><b>You</b><span>{when}</span></div>{f.title}{f.body && <p className="mut">{f.body}</p>}{steps}</div></div>
+          );
+        }
+        if (f.kind === "agent") {
+          return (
+            <div key={f.id} className={`msg ${f.urgent ? "urgent" : ""}`}>
+              <span className="mini-av"><Mark size={18} /></span>
+              <div className="bub">
+                <div className="who"><b>{BRAND.name} assistant</b><span>{when}</span></div>
+                <div>{f.title}</div>
+                {f.body && <p className="mut" style={{ marginTop: 2 }}>{f.body}</p>}
+                {steps}
+              </div>
+            </div>
+          );
+        }
+        return (
+          <div key={f.id} className={`evt ${f.urgent ? "bad" : f.kind === "chain" ? "" : "sys"}`}>
+            <b>{f.title}</b> <span className="dim">· {when}{f.kind === "chain" ? " · contract" : ""}</span>
+            {f.body && <div>{f.body}</div>}
+            {steps}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -64,6 +88,7 @@ function Feed({ items }: { items: FeedItem[] }) {
 export default function Dashboard() {
   const [s, setS] = useState<SimState | null>(null);
   const [wallet, setWallet] = useState(false);
+  const [all, setAll] = useState(false);
 
   useEffect(() => { setS(loadSim() ?? initSim()); }, []);
   useEffect(() => { if (s) saveSim(s); }, [s]);
@@ -75,9 +100,7 @@ export default function Dashboard() {
   if (!s || !sug) return <main className="wrap"><p className="mut" style={{ padding: 20 }}>Loading simulation…</p></main>;
 
   const cd = countdownTarget(s);
-  const total = s.snap.intervalMs + s.snap.graceMs + s.snap.challengeMs;
   const a = anchor(s.snap);
-  const pos = Math.min(1, Math.max(0, (s.now - a) / total));
   const av = agentView(s);
   const handed = s.snap.handover;
   const over = st === "released" || st === "closed";
@@ -86,165 +109,165 @@ export default function Dashboard() {
   const firstG = s.cfg.guardians[0]!;
   const late = s.now > expiry(s.snap);
   const hot = st !== "active" && st !== "paused";
+  const ge = graceEnd(s.snap);
+  const tone = frozen || (hot && !over) ? (frozen ? "cold" : "hot") : "";
+  const pillTone = over ? "" : frozen ? "cold" : hot ? "warn" : "ok";
 
   return (
-    <main className="wrap wide">
-      <div className="dash cols">
-        <div className="stack" style={{ gridColumn: "1 / -1" }}>
-          <SimBanner text="Simulated time, simulated funds, simulated messages. Nothing here touches a chain." />
+    <main className="wrap">
+      <div className="app">
+        <div className="app-head">
+          <h2>{s.cfg.ownerName}&apos;s guardian{handed ? ` → ${handed.toName}` : ""}</h2>
+          <SimBanner text="Simulated time, funds and messages. Nothing touches a chain." />
         </div>
 
-        <div className="stack">
-          {/* countdown */}
-          <section className="card stack" aria-label="Countdown">
-            <div className="row between">
-              <div>
-                <span className="label">{s.cfg.ownerName}&apos;s vault{handed ? ` → ${handed.toName}` : ""}</span>
-                <p className="s mut">{s.vaultStable.toLocaleString()} USD stablecoin · fake</p>
+        <div className="dash">
+          <div className="stack" style={{ gap: 14 }}>
+            <section className={`glass pad-l stack ${tone}`} aria-label="Countdown" style={{ gap: 14 }}>
+              <div className="row between">
+                <span className="lbl">{s.vaultStable.toLocaleString()} USD in the vault · fake</span>
+                <span className={`pill ${pillTone}`}>{STATUS_LABEL[st]}</span>
               </div>
-              <span className={`pill ${hot ? (over ? "solid" : "hot") : ""}`}>{STATUS_LABEL[st]}</span>
-            </div>
-            <div>
-              <div className="count" data-testid="countdown">{cd.at !== null ? formatCountdown(cd.at - s.now) : st === "released" ? "Released" : st === "closed" ? "Closed" : "now"}</div>
-              <p className="s mut">{cd.label}</p>
-            </div>
-            <div className="bar" aria-hidden>
-              <div style={{ flex: s.snap.intervalMs, background: "#34343a" }} />
-              <div style={{ flex: s.snap.graceMs, background: "#7a6330" }} />
-              <div style={{ flex: s.snap.challengeMs, background: "var(--accent)" }} />
-              <span className="mark" style={{ left: `calc(${(pos * 100).toFixed(2)}% - 1px)` }} />
-            </div>
-            <div className="tlkey">
-              <span><i style={{ background: "#34343a" }} />interval {s.cfg.intervalDays}d</span>
-              <span><i style={{ background: "#7a6330" }} />grace {s.cfg.graceDays}d</span>
-              <span><i style={{ background: "var(--accent)" }} />challenge {s.cfg.challengeDays}d</span>
-            </div>
-            <div className="row wrapflex">
-              <button className="btn primary" onClick={() => apply(ownerCheckIn)} disabled={over}>I&apos;m here · check in</button>
-              <button className="btn" onClick={() => apply((x) => pauseVault(x, 14))} disabled={over}>Vacation 14d</button>
-            </div>
-            <p className="s dim">Deadline {short(expiry(s.snap))} · guardians can vote after {short(graceEnd(s.snap))} (sim time)</p>
-          </section>
-
-          {/* the AI agent */}
-          {(av || handed) && (
-            <section className={`card stack ${frozen ? "frozen" : ""}`} aria-label="AI agent">
-              {av && acfg ? (
-                <>
-                  <div className="row between">
-                    <div><span className="label">AI agent · {av.name}</span></div>
-                    <span className={`pill ${frozen ? "solid" : av.state === "active" ? "hot" : ""}`} data-testid="agent-state">{AGENT_LABEL[av.state]}</span>
-                  </div>
-                  <div>
-                    <div className="row between"><span><b>{fmtAmount(av.asset, av.remaining)}</b> <span className="mut">left of {fmtAmount(av.asset, av.perPeriod)}</span></span><span className="s dim">{av.resetsAt ? `resets ${short(av.resetsAt)}` : "per " + (acfg.periodDays === 1 ? "day" : "week")}</span></div>
-                    <div className="bar" style={{ marginTop: 6 }} aria-label="Budget left"><div style={{ flex: av.remaining, background: frozen ? "#4a4a50" : "var(--accent)" }} /><div style={{ flex: av.perPeriod - av.remaining, background: "#26262b" }} /></div>
-                  </div>
-                  <p className="s mut">Max {fmtAmount(av.asset, av.perTx)} per payment · only pays: {av.recipients.join(", ")}</p>
-                  {frozen && <p className="s accent" data-testid="frozen-why">{FROZEN_WHY(s, av.state)}</p>}
-                  {!frozen && av.state === "active" && late && <p className="s accent">Owner is late: it will freeze after {short(av.cutoff)}.</p>}
-                  <div className="row wrapflex">
-                    <span className="s dim">Simulate the AI:</span>
-                    <button className="btn sm" disabled={over} onClick={() => apply((x) => agentPay(x, acfg.recipients[0] ?? "Acme Cloud", Math.min(20, acfg.perTx)))}>Pays {acfg.recipients[0]} {fmtAmount(av.asset, Math.min(20, acfg.perTx))}</button>
-                    <button className="btn sm" disabled={over} onClick={() => apply((x) => agentPay(x, acfg.recipients[0] ?? "Acme Cloud", acfg.perTx * 10))}>Tries {fmtAmount(av.asset, acfg.perTx * 10)}</button>
-                    <button className="btn sm" disabled={over} onClick={() => apply((x) => agentPay(x, "Scam LLC", 10))}>Tries unknown payee</button>
-                  </div>
-                  <div className="row wrapflex">
-                    {s.snap.agent?.ownerFrozen
-                      ? <button className="btn sm primary" disabled={over} onClick={() => apply((x) => ownerFreeze(x, false))}>Unfreeze {av.name}</button>
-                      : <button className="btn sm" disabled={over || frozen} onClick={() => apply((x) => ownerFreeze(x, true))}>Freeze {av.name} (kill-switch)</button>}
-                    <span className="s dim">Owner can revoke or replace the agent any time.</span>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="row between"><span className="label">AI agent · {handed?.agentName ?? "agent"}</span><span className="pill solid">Handed over</span></div>
-                  <p className="s mut">The vault and its funds now belong to <b style={{ color: "var(--text)" }}>{handed?.toName}</b>, the successor {s.cfg.ownerName} named in advance. {handed?.agentName ?? "The agent"} has no permissions until {handed?.toName} authorises one again.</p>
-                </>
-              )}
+              <div className="stack" style={{ gap: 6 }}>
+                <div className={`countdown ${over ? "" : frozen ? "cold" : hot ? "warn" : ""}`} data-testid="countdown">{cd.at !== null ? formatCountdown(cd.at - s.now) : st === "released" ? "Released" : st === "closed" ? "Closed" : "now"}</div>
+                <p className="mut">{cd.label}</p>
+              </div>
+              <Timeline
+                startMs={a} now={s.now} intervalMs={s.snap.intervalMs} graceMs={s.snap.graceMs} challengeMs={s.snap.challengeMs}
+                freezeAt={av && av.state !== "stopped" ? av.cutoff : null}
+                labels={{ due: short(expiry(s.snap)), grace: short(ge), challenge: short(ge + s.snap.challengeMs) }}
+              />
+              <div className="btns">
+                <button className="btn primary" onClick={() => apply(ownerCheckIn)} disabled={over}>I&apos;m here · check in</button>
+                <button className="btn" onClick={() => apply((x) => pauseVault(x, 14))} disabled={over}>Vacation 14d</button>
+              </div>
             </section>
-          )}
 
-          {/* story */}
-          <section className="card stack" aria-label="Guided story">
-            <span className="label">What&apos;s happening</span>
-            <p>{STATUS_EXPLAIN(s)[st]}</p>
-            <p className="s mut">{sug.hint}</p>
-            <div className="row wrapflex">
-              <button className="btn primary" onClick={() => apply(sug.run)}>{sug.label} →</button>
-              {sug.alt && <button className="btn" onClick={() => apply(sug.alt!.run)}>{sug.alt.label}</button>}
-              {sug.alts?.map((a) => <button key={a.label} className="btn" onClick={() => apply(a.run)}>{a.label}</button>)}
-            </div>
-          </section>
+            {(av || handed) && (
+              <section className={`glass pad-l stack ${frozen ? "cold" : ""}`} aria-label="AI agent" style={{ gap: 16 }}>
+                {av && acfg ? (
+                  <>
+                    <div className="row between">
+                      <span className="sect-t">{av.name}</span>
+                      <span className={`pill ${frozen ? "cold" : av.state === "active" ? "ok" : ""}`} data-testid="agent-state">{AGENT_LABEL[av.state]}</span>
+                    </div>
+                    <div className="agent">
+                      <Gauge value={av.perPeriod ? av.remaining / av.perPeriod : 0} state={frozen ? "frozen" : av.state === "stopped" ? "stopped" : "active"}>
+                        <b>{fmtAmount(av.asset, av.remaining)}</b>
+                        <span>left of {fmtAmount(av.asset, av.perPeriod)}</span>
+                      </Gauge>
+                      <dl className="kv" style={{ margin: 0 }}>
+                        <dt>Per payment</dt><dd>max {fmtAmount(av.asset, av.perTx)}</dd>
+                        <dt>Budget</dt><dd>{av.resetsAt ? `resets ${short(av.resetsAt)}` : "per " + (acfg.periodDays === 1 ? "day" : "week")}</dd>
+                      </dl>
+                    </div>
+                    <div className="tags"><span className="xs dim" style={{ alignSelf: "center" }}>Pays only</span>{av.recipients.map((r) => <span className="tag" key={r}>{r}</span>)}</div>
+                    {frozen && <p className="frostbar" data-testid="frozen-why">{FROZEN_WHY(s, av.state)}</p>}
+                    {!frozen && av.state === "active" && late && <p className="note">Owner is late: it will freeze after {short(av.cutoff)}.</p>}
+                    <div className="stack" style={{ gap: 8 }}>
+                      <span className="xs dim">Simulate the AI</span>
+                      <div className="btns">
+                        <button className="btn sm" disabled={over} onClick={() => apply((x) => agentPay(x, acfg.recipients[0] ?? "Acme Cloud", Math.min(20, acfg.perTx)))}>Pays {acfg.recipients[0]} {fmtAmount(av.asset, Math.min(20, acfg.perTx))}</button>
+                        <button className="btn sm" disabled={over} onClick={() => apply((x) => agentPay(x, acfg.recipients[0] ?? "Acme Cloud", acfg.perTx * 10))}>Tries {fmtAmount(av.asset, acfg.perTx * 10)}</button>
+                        <button className="btn sm" disabled={over} onClick={() => apply((x) => agentPay(x, "Scam LLC", 10))}>Tries unknown payee</button>
+                      </div>
+                    </div>
+                    <div className="btns">
+                      {s.snap.agent?.ownerFrozen
+                        ? <button className="btn sm primary" disabled={over} onClick={() => apply((x) => ownerFreeze(x, false))}>Unfreeze {av.name}</button>
+                        : <button className="btn sm cold" disabled={over || frozen} onClick={() => apply((x) => ownerFreeze(x, true))}>Freeze {av.name} (kill-switch)</button>}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="row between"><span className="sect-t">{handed?.agentName ?? "Agent"}</span><span className="pill">Handed over</span></div>
+                    <p className="mut">The vault and its funds now belong to <b style={{ color: "var(--text)" }}>{handed?.toName}</b>, the successor {s.cfg.ownerName} named in advance. {handed?.agentName ?? "The agent"} has no permissions until {handed?.toName} authorises one again.</p>
+                  </>
+                )}
+              </section>
+            )}
 
-          {/* fast-forward */}
-          <section className="card stack" aria-label="Fast-forward time">
-            <div className="row between">
-              <span className="label">Fast-forward time</span>
-              <span className="pill hot">demo only</span>
-            </div>
-            <p className="s mut">Sim clock: <b style={{ color: "var(--text)" }}>{short(s.now)} UTC</b>. Jumps run the agent hour by hour, so every reminder fires.</p>
-            <div className="row wrapflex">
+            <section className="glass pad-l stack" aria-label="Guided story" style={{ gap: 12 }}>
+              <span className="sect-t">What&apos;s happening</span>
+              <p>{STATUS_EXPLAIN(s)[st]}</p>
+              <p className="mut">{sug.hint}</p>
+              <div className="btns">
+                <button className="btn primary" onClick={() => apply(sug.run)}>{sug.label} →</button>
+                {sug.alt && <button className="btn" onClick={() => apply(sug.alt!.run)}>{sug.alt.label}</button>}
+                {sug.alts?.map((a) => <button key={a.label} className="btn" onClick={() => apply(a.run)}>{a.label}</button>)}
+              </div>
+            </section>
+          </div>
+
+          <div className="stack" style={{ gap: 14 }}>
+            <section className="glass pad-l stack" aria-label="Guardians" style={{ gap: 12 }}>
+              <div className="row between">
+                <span className="sect-t">Guardians</span>
+                <span className="pill">{s.snap.approvedBy.length} of {s.snap.threshold} approved</span>
+              </div>
+              <div className="gl">
+                {s.cfg.guardians.map((g) => {
+                  const voted = s.snap.approvedBy.includes(g.id);
+                  return (
+                    <div className="g" key={g.id}>
+                      <span className={`av ${voted ? "on" : ""}`}>{g.name.slice(0, 1).toUpperCase()}</span>
+                      <span className="stack" style={{ gap: 0 }}><span>{g.name}</span><span className="xs dim">{voted ? "approved" : "waiting"}</span></span>
+                      {s.cfg.agent ? (
+                        <span className="row" style={{ gap: 6 }}>
+                          <button className="btn sm" disabled={over || voted || st === "challenge" || st === "executable" || !s.cfg.agent.successorName} onClick={() => apply((x) => guardianApprove(x, g.id, "handover"))}>Hand over</button>
+                          <button className="btn sm" disabled={over || voted || st === "challenge" || st === "executable"} onClick={() => apply((x) => guardianApprove(x, g.id, "release"))}>Shut down</button>
+                        </span>
+                      ) : (
+                        <button className="btn sm" disabled={over || voted || st === "challenge" || st === "executable"} onClick={() => apply((x) => guardianApprove(x, g.id))}>Approve</button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              {av && (
+                <div className="btns">
+                  <button className="btn sm cold" disabled={over || !late || s.snap.agent?.guardianFrozenEpoch === s.snap.epoch} onClick={() => apply((x) => guardianFreeze(x, firstG.id))}>Freeze {av.name} ({firstG.name})</button>
+                </div>
+              )}
+              <p className="xs dim">
+                Voting opens {short(ge)} (deadline + grace); the contract rejects earlier votes. {s.cfg.agent
+                  ? <>Outcomes are fixed by the owner: <b style={{ color: "var(--mut)" }}>Hand over</b> → {s.cfg.agent.successorName || "none named"}, <b style={{ color: "var(--mut)" }}>Shut down</b> → funds to {s.cfg.beneficiaryName}.</>
+                  : <>Beneficiary: <b style={{ color: "var(--mut)" }}>{s.cfg.beneficiaryName}</b> (fixed by the owner).</>}
+              </p>
+              <div className="btns" style={{ alignItems: "center" }}>
+                <button className="btn sm primary" onClick={() => apply(executeRelease)} disabled={over}>{s.snap.pendingOutcome === "handover" ? "Execute handover" : "Execute release"}</button>
+                <span className="xs dim">anyone can call it, once the window ends</span>
+              </div>
+            </section>
+
+            <section className="glass pad-l stack" aria-label="Activity" style={{ gap: 14 }}>
+              <div className="row between"><span className="sect-t">Activity</span><span className="xs dim">assistant + contract events</span></div>
+              <Feed items={s.feed.slice(0, all ? 40 : 8)} />
+              {s.feed.length > 8 && <button className="btn sm ghost seeall" onClick={() => setAll(!all)}>{all ? "Show fewer" : `Show ${Math.min(40, s.feed.length) - 8} older`}</button>}
+            </section>
+
+            <section className="glass pad-l" aria-label="Real chain (optional)">
+              <details className="opt" open={wallet} onToggle={(e) => setWallet((e.target as HTMLDetailsElement).open)}>
+                <summary className="row between" style={{ cursor: "pointer", listStyle: "none" }}><span className="sect-t">Real chain · optional</span><span className="xs dim">{wallet ? "hide" : "show"}</span></summary>
+                <div style={{ marginTop: 12 }}>{wallet && <WalletPanel />}</div>
+              </details>
+            </section>
+            <p className="xs dim"><Link href="/setup" style={{ textDecoration: "underline" }}>Re-run setup</Link> · {BRAND.name} MVP · unaudited · simulation</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="dock" aria-label="Fast-forward time">
+        <div className="glass">
+          <div className="row between wrapflex" style={{ gap: 8 }}>
+            <span className="badge sim"><i />Demo time · {short(s.now)} UTC</span>
+            <div className="row" style={{ gap: 6 }}>
               {[["+1 h", HOUR], ["+1 d", DAY], ["+7 d", 7 * DAY], ["+30 d", 30 * DAY]].map(([l, ms]) => (
                 <button key={l as string} className="btn sm" onClick={() => apply((x) => advanceBy(x, ms as number))} disabled={over}>{l}</button>
               ))}
               <button className="btn sm ghost" onClick={() => apply((x) => initSim(x.cfg))}>Reset</button>
             </div>
-          </section>
-        </div>
-
-        <div className="stack">
-          <section className="card stack" aria-label="Guardians">
-            <div className="row between">
-              <span className="label">Guardians · {s.snap.threshold} of {s.snap.guardianCount}</span>
-              <span className="s mut">{s.snap.approvedBy.length} approved</span>
-            </div>
-            {av && (
-              <div className="row wrapflex">
-                <button className="btn sm" disabled={over || !late || s.snap.agent?.guardianFrozenEpoch === s.snap.epoch} onClick={() => apply((x) => guardianFreeze(x, firstG.id))}>Freeze {av.name} ({firstG.name})</button>
-                <span className="s dim">any single guardian, only once the owner is late</span>
-              </div>
-            )}
-            <div className="gl">
-              {s.cfg.guardians.map((g) => {
-                const voted = s.snap.approvedBy.includes(g.id);
-                return (
-                  <div className="g" key={g.id}>
-                    <span><span className={`dot ${voted ? "on" : ""}`} />{g.name}<span className="s dim"> · {voted ? "approved" : "waiting"}</span></span>
-                    {s.cfg.agent ? (
-                      <span className="row" style={{ gap: 4 }}>
-                        <button className="btn sm" disabled={over || voted || st === "challenge" || st === "executable" || !s.cfg.agent.successorName} onClick={() => apply((x) => guardianApprove(x, g.id, "handover"))}>Hand over</button>
-                        <button className="btn sm" disabled={over || voted || st === "challenge" || st === "executable"} onClick={() => apply((x) => guardianApprove(x, g.id, "release"))}>Shut down</button>
-                      </span>
-                    ) : (
-                      <button className="btn sm" disabled={over || voted || st === "challenge" || st === "executable"} onClick={() => apply((x) => guardianApprove(x, g.id))}>Approve</button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            <p className="s dim">
-              Try voting early: the contract rejects it until deadline + grace. {s.cfg.agent
-                ? <>Outcomes are fixed by the owner: <b style={{ color: "var(--mut)" }}>Hand over</b> → {s.cfg.agent.successorName || "none named"}, <b style={{ color: "var(--mut)" }}>Shut down</b> → funds to {s.cfg.beneficiaryName}.</>
-                : <>Beneficiary: <b style={{ color: "var(--mut)" }}>{s.cfg.beneficiaryName}</b> (fixed by the owner).</>}
-            </p>
-            <div className="row">
-              <button className="btn sm primary" onClick={() => apply(executeRelease)} disabled={over}>{s.snap.pendingOutcome === "handover" ? "Execute handover" : "Execute release"}</button>
-              <span className="s dim">anyone can call, only works after the window</span>
-            </div>
-          </section>
-
-          <section className="card stack" aria-label="Activity">
-            <div className="row between"><span className="label">Activity</span><span className="s dim">agent messages + contract events</span></div>
-            <Feed items={s.feed.slice(0, 30)} />
-          </section>
-
-          <section className="card" aria-label="Real chain (optional)">
-            <details className="opt" open={wallet} onToggle={(e) => setWallet((e.target as HTMLDetailsElement).open)}>
-              <summary><span className="label">Real chain · optional</span><span className="s dim">{wallet ? "hide" : "show"}</span></summary>
-              <div style={{ marginTop: 10 }}>{wallet && <WalletPanel />}</div>
-            </details>
-          </section>
-          <p className="s dim"><Link href="/setup" style={{ textDecoration: "underline" }}>Re-run setup</Link> · {BRAND.name} MVP · unaudited · simulation</p>
+          </div>
         </div>
       </div>
     </main>

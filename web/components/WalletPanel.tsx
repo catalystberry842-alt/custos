@@ -84,7 +84,7 @@ export default function WalletPanel() {
   const isOwner = !!info && !!acct && info.owner.toLowerCase() === acct.toLowerCase();
   return (
     <div className="stack">
-      <p className="s accent">⚠ Experimental. The contracts are unaudited and not deployed by this project. Use only addresses you trust, with funds you can afford to lose.</p>
+      <p className="note">⚠ Experimental. The contracts are unaudited and not deployed by this project. Use only addresses you trust, with funds you can afford to lose.</p>
       <div className="row wrapflex">
         <div className="chips" role="radiogroup" aria-label="Network">
           {(["testnet", "mainnet"] as const).map((n) => (
@@ -94,9 +94,9 @@ export default function WalletPanel() {
           ))}
         </div>
       </div>
-      {net === "mainnet" && <p className="s accent">Mainnet uses real funds. {BRAND.name} is unaudited and this project has not deployed it. Prefer testnet.</p>}
+      {net === "mainnet" && <p className="note">Mainnet uses real funds. {BRAND.name} is unaudited and this project has not deployed it. Prefer testnet.</p>}
       {!acct ? (
-        <div className="row"><button className="btn sm" onClick={connect}>Connect browser wallet</button><span className="s dim">{chain.name} · chain {chain.id} · injected wallets only</span></div>
+        <div className="row"><button className="btn sm" onClick={connect}>Connect browser wallet</button><span className="xs dim">{chain.name} · chain {chain.id} · injected wallets only</span></div>
       ) : (
         <div className="row between wrapflex">
           <span className="mono">{acct.slice(0, 6)}…{acct.slice(-4)}</span>
@@ -105,15 +105,15 @@ export default function WalletPanel() {
         </div>
       )}
       <div className="field">
-        <label className="s mut" htmlFor="vault">Vault address (read-only lookup)</label>
+        <label className="lbl" htmlFor="vault">Vault address (read-only lookup)</label>
         <input id="vault" className={`input ${vault && !v ? "bad" : ""}`} placeholder="0x… vault address" value={vault} onChange={(e) => setVault(e.target.value.trim())} />
       </div>
       <div className="field">
-        <label className="s mut" htmlFor="rpc">Own RPC URL (optional, https only; the public RPC is rate-limited)</label>
+        <label className="lbl" htmlFor="rpc">Own RPC URL (optional, https only; the public RPC is rate-limited)</label>
         <input id="rpc" className="input" placeholder={NETWORKS[net].rpcUrls.default.http[0]} value={rpc} onChange={(e) => setRpc(e.target.value.trim())} />
       </div>
       {info && (
-        <div className="card stack" style={{ gap: 4 }}>
+        <div className="inset stack" style={{ gap: 4 }}>
           <div className="row between"><span className="mut">Status</span><b>{info.status}</b></div>
           <div className="row between"><span className="mut">Last check-in</span><b>{info.last}</b></div>
           <div className="row between"><span className="mut">Interval</span><b>{info.interval}</b></div>
@@ -121,11 +121,11 @@ export default function WalletPanel() {
           <button className="btn sm primary" style={{ alignSelf: "flex-start" }} disabled={!isOwner || wrong || busy} onClick={checkIn}>
             {busy ? "Confirm in wallet…" : "Check in (sends a transaction)"}
           </button>
-          <span className="s dim">Only the vault owner can check in. Your wallet shows the exact call before signing.</span>
-          {tx && <p className="s mono">tx {tx.slice(0, 14)}…</p>}
+          <span className="xs dim">Only the vault owner can check in. Your wallet shows the exact call before signing.</span>
+          {tx && <p className="xs mono">tx {tx.slice(0, 14)}…</p>}
         </div>
       )}
-      {err && <p className="s accent">{err}</p>}
+      {err && <p className="note">{err}</p>}
     </div>
   );
 }
