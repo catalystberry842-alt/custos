@@ -1,6 +1,6 @@
 {
-  "name": "Custos — Ink + Beacon",
-  "dark": { "bg": "#070A12", "bg2": "#0B1020", "text": "#EAF0FF", "muted": "#9AA6C2", "dim": "#66718D", "signal": "#3BE0F5", "signal2": "#7C8CFF", "frost": "#BCD3FF", "ember": "#FF7A59" },
-  "light": { "bg": "#F2F5FB", "bg2": "#E8EDF7", "text": "#0A0E1A", "muted": "#4A5671", "dim": "#7A86A1", "signal": "#0592B3", "signal2": "#5465E6", "frost": "#4C6CB8", "ember": "#D8451F" },
-  "roles": { "signal": "brand / active / primary action (gradient signal→signal2)", "frost": "agent frozen", "ember": "blocked, overdue, urgent" }
+  "name": "Custos: Paper + Ink",
+  "light": { "bg": "#F7F6F3", "bg2": "#EFEDE8", "card": "#FFFFFF", "text": "#0E0E10", "muted": "#55555B", "dim": "#75757B", "hairline": "rgba(14,14,16,.09)", "accent": "#1C5240", "frost": "#4F6B8A", "danger": "#A8412B" },
+  "dark": { "bg": "#0A0A0A", "bg2": "#111111", "card": "#131313", "text": "#F2F1EE", "muted": "#A4A4A9", "dim": "#7E7E84", "hairline": "rgba(255,255,255,.09)", "accent": "#8FD1AE", "frost": "#9DB4D1", "danger": "#E58B72" },
+  "roles": { "accent": "brand token, active state, progress (used sparingly)", "frost": "agent frozen (quiet)", "danger": "refused / overdue (muted)" }
 }

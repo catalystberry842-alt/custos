@@ -110,7 +110,7 @@ export default function Dashboard() {
   const late = s.now > expiry(s.snap);
   const hot = st !== "active" && st !== "paused";
   const ge = graceEnd(s.snap);
-  const tone = frozen || (hot && !over) ? (frozen ? "cold" : "hot") : "";
+  const tone = hot && !over && !frozen ? "hot" : "";
   const pillTone = over ? "" : frozen ? "cold" : hot ? "warn" : "ok";
 
   return (

@@ -6,8 +6,8 @@ export const THEME_KEY = "custos-theme";
 export const THEME_INIT = `try{var t=localStorage.getItem("${THEME_KEY}");if(t)document.documentElement.dataset.theme=t}catch(e){}`;
 
 export default function ThemeToggle() {
-  const [t, setT] = useState<"dark" | "light">("dark");
-  useEffect(() => { setT((document.documentElement.dataset.theme as "dark" | "light") ?? "dark"); }, []);
+  const [t, setT] = useState<"dark" | "light">("light");
+  useEffect(() => { setT((document.documentElement.dataset.theme as "dark" | "light") ?? "light"); }, []);
   const flip = () => {
     const n = t === "dark" ? "light" : "dark";
     document.documentElement.dataset.theme = n;

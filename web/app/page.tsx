@@ -1,7 +1,8 @@
 import Link from "next/link";
-import HeroVisual from "@/components/HeroVisual";
+import HeroProduct from "@/components/HeroProduct";
 import { Wordmark } from "@/components/Logo";
 import { SceneBudget, SceneCheckIn, SceneFreeze, SceneOutcome, SceneVote } from "@/components/Scenes";
+import { DashPreview, PhonePreview } from "@/components/Previews";
 import SimBanner from "@/components/SimBanner";
 import { BRAND } from "@/lib/brand";
 
@@ -54,54 +55,91 @@ const FAQ = [
   ["Why Robinhood Chain?", "It is the chain this prototype is designed around: an Arbitrum-style L2 where deadlines use block timestamps only. Everything here has been tested locally only."],
 ];
 
+const STATS = [
+  ["$200", "a day. The most Atlas can ever spend, enforced by the contract."],
+  ["2 of 3", "guardians must agree before anything happens to a frozen agent."],
+  ["0", "admin keys. Nobody, including us, can override your rules."],
+  ["1 tap", "is all it takes to prove you are still here."],
+];
+
 export default function Landing() {
   return (
     <main>
       <div className="wrap">
         <section className="hero">
-          <div className="stack" style={{ gap: 22 }}>
-            <span className="badge sig" style={{ alignSelf: "flex-start" }}><i />Built for Robinhood Chain · simulation demo</span>
-            <h1>A guardian for your <span className="sig">AI agent.</span></h1>
-            <p className="lead">Give your agent a budget it can&apos;t exceed. If you go silent, it freezes, and people you trust decide what happens next.</p>
-            <div className="row wrapflex">
-              <Link href="/dashboard" className="btn primary">Try the demo</Link>
-              <Link href="/setup" className="btn">Set up your agent</Link>
-            </div>
-            <div className="trust"><span>Non-custodial</span><span>No admin keys</span><span>No oracle</span><span>No token</span><span>Open-source MVP</span></div>
+          <h1>A guardian for your AI agent.</h1>
+          <p className="lead">Give your agent a budget it can&apos;t exceed. If you go silent, it freezes and people you trust decide what happens next.</p>
+          <div className="btns">
+            <Link href="/dashboard" className="btn primary lg">Try the demo</Link>
+            <Link href="/setup" className="btn lg">Set up your agent</Link>
           </div>
-          <HeroVisual />
+          <div className="hero-stage"><HeroProduct /></div>
+        </section>
+
+        <section className="sec" style={{ paddingTop: 72 }} aria-label="Key numbers">
+          <div className="stats">
+            {STATS.map(([n, t]) => (<div className="stat" key={n}><span className="n">{n}</span><p>{t}</p></div>))}
+          </div>
+        </section>
+
+        <section className="sec" id="product">
+          <div className="sec-head">
+            <span className="eyebrow">The product</span>
+            <h2>One screen tells the whole story.</h2>
+            <p>Countdown, budget, guardians and a plain-language activity feed. Here, Ada has been silent for a week and the guardians have already voted.</p>
+          </div>
+          <DashPreview />
         </section>
 
         <section className="sec" id="how">
           <div className="sec-head">
             <span className="eyebrow">How it works</span>
-            <h2>Five steps from &ldquo;go do your job&rdquo; to &ldquo;I&apos;m gone&rdquo;</h2>
-            <p>Every step below is enforced by a contract. The animations show what the demo does for real.</p>
+            <h2>From &ldquo;go do your job&rdquo; to &ldquo;I&apos;m gone&rdquo;, in five steps.</h2>
+            <p>Every step is enforced by a contract. The demo runs exactly this, with fake money and fake time.</p>
           </div>
-          {FEATURES.map((f, i) => (
-            <article key={f.title} className={`glass feature ${i % 2 ? "rev" : ""}`}>
-              <div className="txt">
-                <h3 style={{ fontSize: "var(--t-lg)" }}>{f.title}</h3>
-                <p>{f.body}</p>
-                <ul className="points">{f.points.map((p) => <li key={p}>{p}</li>)}</ul>
-              </div>
-              <div className="vis">{f.scene}</div>
-            </article>
-          ))}
+          <div className="stack" style={{ gap: 56 }}>
+            {FEATURES.map((f, i) => (
+              <article key={f.title} className={`feature ${i % 2 ? "rev" : ""}`}>
+                <div className="txt">
+                  <span className="xs dim">Step {i + 1} of 5</span>
+                  <h3>{f.title}</h3>
+                  <p>{f.body}</p>
+                  <ul className="points" style={{ padding: 0 }}>{f.points.map((p) => <li key={p}>{p}</li>)}</ul>
+                </div>
+                <div className="vis">{f.scene}</div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="sec" id="alerts">
+          <article className="feature rev" style={{ borderTop: 0, paddingTop: 0 }}>
+            <div className="txt">
+              <span className="eyebrow">Reminders</span>
+              <h3>Messages that get louder only when needed.</h3>
+              <p>A gentle nudge first, a clear warning before the deadline, plain words if the agent freezes. Every message says what happened and what to do.</p>
+              <ul className="points" style={{ padding: 0 }}>
+                <li>Chat reminders you can answer with one tap</li>
+                <li>Guardians are told when you are overdue, never before</li>
+                <li>An AI model only helps with wording; it never decides anything</li>
+              </ul>
+            </div>
+            <div className="vis"><PhonePreview /></div>
+          </article>
         </section>
 
         <section className="sec" id="why">
           <div className="sec-head">
             <span className="eyebrow">Why on-chain limits</span>
             <h2>Trust is a bad guardrail. A contract isn&apos;t.</h2>
-            <p>Agents get hacked, tricked and misconfigured. So the limits can't live in the agent, or in a service you have to trust.</p>
+            <p>Agents get hacked, tricked and misconfigured. So the limits can&apos;t live inside the agent, or in a service you have to trust.</p>
           </div>
           <div className="cmp">
             <div className="glass col">
               <h3>If you trust the agent</h3>
-              {WHY.map(([a]) => <div className="rowi" key={a}><b>{a}</b><span className="ember">Everything it can reach is at risk.</span></div>)}
+              {WHY.map(([a]) => <div className="rowi" key={a}><b>{a}</b><span>Everything it can reach is at risk.</span></div>)}
             </div>
-            <div className="glass col hot">
+            <div className="glass col inv">
               <h3>With Custos</h3>
               {WHY.map(([a, b]) => <div className="rowi" key={a}><b>{a}</b><span>{b}</span></div>)}
             </div>
@@ -111,20 +149,20 @@ export default function Landing() {
         <section className="sec" id="roles">
           <div className="sec-head">
             <span className="eyebrow">Who does what</span>
-            <h2>What the AI does, and what code does</h2>
-            <p>The AI is useful, and never in charge. Anything that moves money or time is plain code you can read.</p>
+            <h2>What the AI does, and what code does.</h2>
+            <p>The AI is useful and never in charge. Anything that moves money or time is plain code you can read.</p>
           </div>
           <div className="split">
             <div className="glass col">
               <span className="badge"><i />The AI</span>
-              <h3>Works and talks</h3>
-              <p className="mut">Your agent does its job and asks to pay. The check-in assistant, optionally using a language model, writes friendly wording for the messages you receive.</p>
+              <h3 style={{ fontSize: "var(--t-lg)" }}>Works and talks</h3>
+              <p>Your agent does its job and asks to pay. The check-in assistant, optionally using a language model, writes friendly wording for the messages you receive.</p>
               <div className="tags"><span className="tag">asks to pay</span><span className="tag">writes message wording</span><span className="tag">explains what happened</span></div>
             </div>
-            <div className="glass col hot">
-              <span className="badge sig"><i />The code</span>
-              <h3>Decides everything else</h3>
-              <p className="mut">Limits, allowlists, deadlines, the freeze, who may vote and where funds can go. Deterministic, tested, and the same whether or not any AI is online.</p>
+            <div className="glass col inv">
+              <span className="badge"><i />The code</span>
+              <h3 style={{ fontSize: "var(--t-lg)" }}>Decides everything else</h3>
+              <p>Limits, allowlists, deadlines, the freeze, who may vote and where funds can go. Deterministic, tested, and the same whether or not any AI is online.</p>
               <div className="tags"><span className="tag">per-payment and daily caps</span><span className="tag">allowlist</span><span className="tag">auto-freeze</span><span className="tag">votes and timers</span><span className="tag">destinations</span></div>
             </div>
           </div>
@@ -133,7 +171,7 @@ export default function Landing() {
         <section className="sec" id="limits">
           <div className="sec-head">
             <span className="eyebrow">Honest limits</span>
-            <h2>What Custos does not do</h2>
+            <h2>What Custos does not do.</h2>
             <p>Safety tooling should be clear about its edges.</p>
           </div>
           <div className="limits">
@@ -145,13 +183,13 @@ export default function Landing() {
               ["Monitoring is a mock", "The assistant reads a simulated agent's activity. A real activity feed is not built yet."],
               ["Not legal advice", "It's not a will. Inheritance and tax law still apply, and there is no token."],
             ].map(([t, d]) => (
-              <div className="glass" key={t}><h3>{t}</h3><p>{d}</p></div>
+              <div key={t}><h3>{t}</h3><p>{d}</p></div>
             ))}
           </div>
         </section>
 
         <section className="sec" id="faq">
-          <div className="sec-head"><span className="eyebrow">FAQ</span><h2>Questions, answered plainly</h2></div>
+          <div className="sec-head"><span className="eyebrow">FAQ</span><h2>Questions, answered plainly.</h2></div>
           <div className="faq">
             {FAQ.map(([q, a]) => (
               <details key={q}><summary>{q}</summary><p>{a}</p></details>
@@ -159,21 +197,21 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="sec" style={{ paddingTop: 24 }}>
-          <div className="glass cta hot">
+        <section className="sec">
+          <div className="cta">
             <h2>See it freeze in under a minute.</h2>
-            <p className="mut" style={{ maxWidth: "46ch" }}>The demo lets you fast-forward time: watch the agent spend, get stopped, freeze, and hand over.</p>
-            <div className="row wrapflex">
-              <Link href="/dashboard" className="btn primary">Open the demo</Link>
-              <Link href="/setup" className="btn">Set up your agent</Link>
+            <p>Fast-forward time in the demo and watch the agent spend, get stopped, freeze and hand over.</p>
+            <div className="btns">
+              <Link href="/dashboard" className="btn primary lg">Open the demo</Link>
+              <Link href="/setup" className="btn lg">Set up your agent</Link>
             </div>
             <SimBanner text="Fake time, funds and AI. Nothing is on-chain." />
           </div>
         </section>
 
         <footer className="foot">
-          <div className="row between wrapflex" style={{ gap: 16 }}>
-            <div className="stack" style={{ gap: 8 }}>
+          <div className="row between wrapflex" style={{ gap: 20, alignItems: "flex-start" }}>
+            <div className="stack" style={{ gap: 10 }}>
               <Wordmark />
               <span>{BRAND.tagline}</span>
             </div>

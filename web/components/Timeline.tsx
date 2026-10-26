@@ -24,15 +24,15 @@ export default function Timeline({ startMs, now, intervalMs, graceMs, challengeM
         </span>
       )}
       <div className="segs">
-        <div className="seg a" style={{ flex: intervalMs }}><i style={{ width: `${fill(startMs, e1, now) * 100}%` }} /></div>
-        <div className="seg g" style={{ flex: graceMs }}><i style={{ width: `${fill(e1, e2, now) * 100}%` }} /></div>
-        <div className="seg c" style={{ flex: challengeMs }}><i style={{ width: `${fill(e2, e3, now) * 100}%` }} /></div>
+        <div className="seg sg-a" style={{ flex: intervalMs }}><i style={{ width: `${fill(startMs, e1, now) * 100}%` }} /></div>
+        <div className="seg sg-g" style={{ flex: graceMs }}><i style={{ width: `${fill(e1, e2, now) * 100}%` }} /></div>
+        <div className="seg sg-c" style={{ flex: challengeMs }}><i style={{ width: `${fill(e2, e3, now) * 100}%` }} /></div>
       </div>
       <span className="now" style={{ left: `${pct(now)}%` }} />
       <div className="leg">
-        <span><i style={{ background: "var(--signal)" }} />Check-in · {labels.due}</span>
-        <span><i style={{ background: "var(--ember)" }} />Grace · {labels.grace}</span>
-        <span><i style={{ background: "var(--signal-2)" }} />Challenge · {labels.challenge}</span>
+        <span><i className="d-a" />Check-in · {labels.due}</span>
+        <span><i className="d-g" />Grace · {labels.grace}</span>
+        <span><i className="d-c" />Challenge · {labels.challenge}</span>
       </div>
     </div>
   );

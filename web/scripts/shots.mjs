@@ -5,18 +5,28 @@ const base = process.argv[2] ?? "http://localhost:3100";
 const out = process.argv[3] ?? "../shots";
 const b = await chromium.launch();
 const click = async (p, name) => { await p.getByRole("button", { name }).first().click(); await p.waitForTimeout(250); };
-for (const [tag, vp, dpr, mobile] of [["mobile", { width: 390, height: 844 }, 2, true], ["desktop", { width: 1440, height: 900 }, 1, false]]) {
+const THEMES = (process.argv[4] ?? "light,dark").split(",");
+const overflow = [];
+for (const theme of THEMES) for (const [vtag, vp, dpr, mobile] of [["mobile", { width: 390, height: 844 }, 2, true], ["desktop", { width: 1440, height: 900 }, 1, false]]) {
+  const tag = `${theme}-${vtag}`;
   const ctx = await b.newContext({ viewport: vp, deviceScaleFactor: dpr, isMobile: mobile, hasTouch: mobile });
+  await ctx.addInitScript((t) => { try { localStorage.setItem("custos-theme", t); } catch {} }, theme);
   const p = await ctx.newPage();
+  const chk = async (n) => { if (await p.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)) overflow.push(`${tag} ${n}`); };
   const shot = async (n, full = true) => { if (!full) await p.evaluate(() => window.scrollTo(0, 0)); return p.screenshot({ path: `${out}/${tag}-${n}.png`, fullPage: full }); };
 
   await p.goto(base + "/", { waitUntil: "networkidle" });
-  await p.waitForTimeout(8200); // let the hero loop reach the freeze/vote moment
+  await chk("landing");
   await shot("01-landing", false);
+  await p.waitForTimeout(9000); // hero loop: ring frozen
+  await p.locator(".hero-stage").screenshot({ path: `${out}/${tag}-01b-hero-frozen.png` });
+  await p.waitForTimeout(7800); // hero loop: handed over to Tunde
+  await p.locator(".hero-stage").screenshot({ path: `${out}/${tag}-01c-hero-handover.png` });
   await shot("01-landing-full");
 
   // wizard
   await p.goto(base + "/setup", { waitUntil: "networkidle" });
+  await chk("setup");
   await shot("02-setup-agent", false);
   await shot("02-setup-agent-full");
   await click(p, "Next");
@@ -32,6 +42,7 @@ for (const [tag, vp, dpr, mobile] of [["mobile", { width: 390, height: 844 }, 2,
   await p.waitForSelector("[data-testid=countdown]");
 
   // story A: owner silent → agent frozen → guardians vote → handover to the successor
+  await chk("dashboard");
   await shot("07-dashboard-active", false);
   await click(p, "works for a day");          // agent pays, gets blocked, owner is told
   await shot("08-dashboard-agent-activity", false);
@@ -39,6 +50,7 @@ for (const [tag, vp, dpr, mobile] of [["mobile", { width: 390, height: 844 }, 2,
   await click(p, "goes silent");              // → overdue / grace (agent still inside allowance)
   await shot("09-dashboard-grace", false);
   await click(p, "Grace period runs out");    // → agent FROZEN, guardians alerted
+  await chk("dashboard-frozen");
   await shot("10-dashboard-agent-frozen", false);
   await shot("10-dashboard-agent-frozen-full");
   await click(p, /^Guardians hand over/);     // → challenge window
@@ -68,3 +80,4 @@ for (const [tag, vp, dpr, mobile] of [["mobile", { width: 390, height: 844 }, 2,
   await ctx.close();
 }
 await b.close();
+console.log(overflow.length ? "OVERFLOW: " + overflow.join(", ") : "no horizontal overflow on any page/viewport/theme");
