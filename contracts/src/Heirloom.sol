@@ -4,13 +4,16 @@ pragma solidity ^0.8.26;
 import {IERC20Min} from "./interfaces/IERC20Min.sol";
 
 /// @title Heirloom — non-custodial crypto dead-man's switch (one vault per owner)
-/// @notice Owner deposits MON + whitelisted ERC-20s. While the owner keeps checking in, nothing
+/// @notice Owner deposits the native gas asset (ETH on Robinhood Chain) + whitelisted ERC-20s (e.g. stablecoins). While the owner keeps checking in, nothing
 ///         can happen. If the owner goes silent for `interval + grace`, N-of-M guardians may
 ///         approve a release; after a `challengeWindow` (owner can cancel by acting) anyone can
 ///         execute it and every asset goes to the beneficiary the owner chose. Guardians can
 ///         never pick the destination, withdraw, or change config.
 /// @dev    Design notes:
-///         - Oracle-free: only `block.timestamp`.
+///         - Oracle-free: only `block.timestamp`. NEVER `block.number`: on Arbitrum-Orbit chains such as
+///           Robinhood Chain it is an L1 block-number estimate that updates only periodically, and
+///           `block.prevrandao`/`difficulty` are constants. Neither is read anywhere (guarded by
+///           test/RobinhoodChain.t.sol, which also greps this file).
 ///         - Not upgradeable, no admin, no external dependencies.
 ///         - Every owner action ("proof of life") bumps `epoch`, voiding votes and challenges.
 ///         - UNAUDITED. Do not hold real value before an audit.
@@ -360,7 +363,7 @@ contract Heirloom {
     }
 
     /// @notice After release the beneficiary may point payouts to a different address (e.g. if the
-    ///         original is a contract that rejects MON).
+    ///         original is a contract that rejects native ETH).
     function redirectPayout(address to) external {
         if (!released) revert NotFinished();
         if (msg.sender != beneficiary) revert NotBeneficiary();

@@ -37,7 +37,7 @@ those who prefer a professional/third-party operator and want an on-chain, check
 
 ### 1.2 Paying service fees
 Optional fees for operator services (SMS/voice costs, monitoring, white-glove guardianship). Payment would happen
-**per vault, by the owner, to the operator pool**, in the staking token *or* in a stablecoin/MON: **fees do not require a
+**per vault, by the owner, to the operator pool**, in the staking token *or* in a stablecoin/ETH: **fees do not require a
 token**. A token-denominated fee is only justified if it solves a real problem (e.g. a single unit of account for a
 slashable-bond pool). Default recommendation: **price services in stablecoin, hold bonds in a volatile-asset-safe way**
 (see §4 risk 3).
@@ -69,14 +69,14 @@ optional "guardian registry" contract, never inside `Heirloom.sol`'s release pat
 4. **Keeper incentives:** `executeRelease()` is already permissionless; a small tip from the vault to the caller is possible without any token.
 5. **Governance minimisation:** parameters (min stake, unbonding, slash %) should be immutable or timelocked; slashing authority must not be a
    multisig that can seize stake at will.
-6. **Liquidity vs. safety:** bonds in a volatile token can lose value exactly when needed. Consider accepting stablecoin or MON bonds instead.
+6. **Liquidity vs. safety:** bonds in a volatile token can lose value exactly when needed. Consider accepting stablecoin or ETH bonds instead.
 
 ## 4. Honest legal / risk note
 
 *Not legal advice. Take advice from qualified counsel in each relevant jurisdiction before any token work.*
 
 1. **Securities / investment-contract risk.** Depending on jurisdiction (e.g. US *Howey*-type analysis; EU MiCA; UK FCA financial-promotion rules;
-   Nigeria's ISA 2025 and SEC digital-asset rules; many others), a token sold to the public with expectations of profit from others' efforts may be a
+   Nigeria's ISA 2025 and the SEC's proposed digital-asset rules; many others), a token sold to the public with expectations of profit from others' efforts may be a
    security or regulated crypto-asset. Marketing, lock-ups, buybacks, "staking rewards" and exchange listings all raise the risk. **Do not** describe
    it as an investment, and do not promise price appreciation, yield, or buybacks.
 2. **Custody/money-transmission.** Heirloom is designed non-custodial (owner-held funds in an owner-specific contract, no admin key). Adding
@@ -94,8 +94,8 @@ optional "guardian registry" contract, never inside `Heirloom.sol`'s release pat
 ## 5. Suggested staged path (if ever pursued)
 
 1. Ship the core switch and the agent with **no token**; collect real usage.
-2. Add an **operator registry with MON/stablecoin bonds** (no new token) and equivocation-only slashing; audit.
-3. Only if operators and users demonstrably need a *shared unit* beyond MON/stablecoin, revisit a dedicated token with counsel, a published legal
+2. Add an **operator registry with ETH/stablecoin bonds** (no new token) and equivocation-only slashing; audit.
+3. Only if operators and users demonstrably need a *shared unit* beyond ETH/stablecoin, revisit a dedicated token with counsel, a published legal
    analysis, no pre-sale promises, and no price/yield marketing.
 
 ## 6. Explicit non-goals
@@ -104,3 +104,85 @@ optional "guardian registry" contract, never inside `Heirloom.sol`'s release pat
 * No promise of price, yield, buyback, burn, or "value accrual".
 * No governance control over user vaults.
 * No admin keys or upgradability in the core contracts.
+
+## 7. Robinhood Chain launch path (design only, nothing implemented or scheduled)
+
+> Still **design only**. No token contract, auction, pool or listing exists, is written, or is authorised by this
+> repository. This section records what a careful launch *would* have to look like if the sections above ever justify one.
+> Not legal, tax or investment advice. **No price, return, yield, buyback or "value accrual" promise is made or may be made.**
+> Facts checked 2026-10-26; re-check before relying on them.
+
+### 7.1 Why this chain
+Heirloom is security and **stablecoin/ETH custody** infrastructure. Robinhood Chain (Arbitrum Orbit L2, chain id 4663, ETH gas) is
+built around tokenised real-world assets and stablecoins such as USDG (Paxos); a dead-man's-switch for those holdings fits the
+audience. The token question is separate from, and strictly after, shipping and auditing the vaults ([DEPLOY-ROBINHOOD.md](DEPLOY-ROBINHOOD.md)).
+
+### 7.2 The only launch path considered: Uniswap Continuous Clearing Auction ("Launch auction")
+Uniswap's [Continuous Clearing Auction (CCA)](https://developers.uniswap.org/docs/liquidity/liquidity-launchpad/concepts/cca.md) is the
+only mechanism considered, because it avoids private allocations:
+
+* Supply is released **gradually over the auction's duration**; each block clears at **one uniform price** for every filled bid
+  (bidders set a budget and a max price; the price can only rise or stay flat; earlier bids can get lower prices).
+* **Graduation threshold:** if the auction does not raise the configured minimum, it fails and **bidders are automatically refunded in full**;
+  the team cannot touch funds unless it succeeds.
+* On success, proceeds seed a **new Uniswap v4 pool** at the discovered price. The Uniswap web app's *Launch auction* flow lets the team
+  pick: duration, auction currency (ETH or USDC), floor price, supply to auction, % of raise to seed, fee tier, price range, LP recipient,
+  an optional **LP timelock** (visible to bidders), optional KYC (Predicate), and optional buyback-and-burn from locked-LP fees.
+* Reported as live on Robinhood Chain since 13 July 2026. **This must be re-verified** on Uniswap's own deployment/docs pages before any plan relies on it.
+
+Conditions we would impose on ourselves:
+
+1. **No team presale, no private round, no pre-auction airdrop, no insider allocation sold ahead of the public.** Any team/treasury allocation is
+   minted to a **vesting contract** (long cliff + linear vest, on-chain, visible before the auction opens) and disclosed in the auction description.
+2. **Fixed, public parameters before the auction opens:** total supply, auctioned amount, floor price, duration, graduation threshold, LP timelock,
+   vesting schedule. No post-hoc changes; the token has no mint function after creation.
+3. **No price talk.** Floor price is a mechanism parameter, not a valuation claim. No "FDV", "x", "up only", yield, buyback or burn promises in any
+   channel. Use the CCA's own risk wording; state plainly that the token can lose all value and that Heirloom works without it.
+4. **LP locked** for a published period; liquidity recipient is a multisig or the timelock, never a personal EOA.
+5. The auction runs only **after** the contracts are audited and have been live without incident for a published period. A token must never be
+   the reason to rush the audit.
+6. The Uniswap launch UI can *create* the token (a standard ERC-20 whose properties we do not control). If we need custom behaviour
+   (e.g. a non-transferable bond receipt), we would deploy and audit our own contract and use the "use existing token" route instead.
+
+### 7.3 The token must have a real job in the product
+If it cannot do all of the following, **do not launch one** (ETH/stablecoin fees and bonds already cover §1 without a token):
+
+| Job | Mechanism | Non-negotiable limits |
+|---|---|---|
+| **Staking guardians / operators** | Professional guardians and check-in operators post a **bond** (§1.1) to be listed by `IGuardianStaking.isEligible`. | Bond only: no yield, no voting. Unbonding delay longer than the maximum challenge window. Vault owners can always pick unstaked friends/family. |
+| **Fees** | Optional operator-service fees (SMS/voice, monitoring) paid per vault by the owner. | Fees must be **payable in a stablecoin**; the token is at most a discounted option, never required. No protocol fee switch on vault funds. |
+| **Slashing** | Equivocation and missed-attestation faults provable on-chain (§3.1); proceeds to the harmed vault/beneficiary and a burn/safety fund. | No subjective faults; no bounty to the accuser alone; slashing authority is code, not a multisig. |
+
+Hard guardrails: the token never gates, delays, redirects or pauses a release; the core `Heirloom` contract has no token dependency and no admin key;
+if the token or registry dies every vault keeps working.
+
+### 7.4 Legal caveats
+* **Nigeria.** The SEC Nigeria published draft *Proposed Rules on Digital and Virtual Assets Operations, Custody and Markets* on **20 August 2026**
+  under the Investments and Securities Act 2025 (comment period closed in early September 2026). As drafted they would: require prior
+  approval or a no-objection for any issuance, offer or distribution of a digital asset **to the public in Nigeria**; apply to anyone who
+  **targets Nigerian investors or provides services to Nigerian residents, including offshore and via digital channels**; create registrable functions
+  (exchange, custodian, offering platform, platform operator, RWA-tokenisation platform, VASP); and impose custody safeguards (e.g. a cold-storage minimum for custodians).
+  **They are proposed, not in force, and the final text may differ**, but the direction is that a public token sale touching Nigerians likely needs prior engagement with the SEC
+  (and the CBN has primary say over stablecoin issuance). If the operator is based in Nigeria or targets Nigerians, get **local counsel** before any step. Consider geo-restricting the auction
+  (the CCA supports KYC/identity modules) and engaging SEC Nigeria's regulatory incubation route.
+* **Elsewhere:** US (Howey-type analysis), EU (MiCA), UK (FCA financial-promotion rules) and others may treat a publicly sold token as a security/regulated crypto-asset,
+  especially with marketing that implies profit from the team's efforts. A "fair" auction mechanism does **not** change the legal classification.
+* **No price promises, ever** (see 7.2.3); that includes social media, docs, UI copy and team comments. Do not describe any token as an investment.
+* Operators handle personal data (NDPR/GDPR); slashing disputes need contracts/terms; an on-chain release is **not a will**.
+* Sequencer-level sanctions screening on Robinhood Chain can exclude transactions from sanctioned addresses; auction participation and vault flows are subject to it.
+
+### 7.5 Open design questions
+1. Is there *any* token job that stablecoin/ETH bonds and fees cannot do? If not, the answer is **no token**.
+2. Which on-chain faults are **objectively** slashable, and what stops owners or attackers faking a fault (EIP-712 equivocation proof design, replay across epochs)?
+3. Bond currency: ETH/stablecoin vs. the token (volatile-bond problem: a bond that collapses exactly when it is needed).
+4. Supply, auction size, floor price and graduation threshold: how are these set without implying a valuation? Auction currency ETH vs. USDC?
+5. Vesting and LP-lock lengths; who holds the multisig; what happens to unsold supply (burn vs. return to a locked treasury)?
+6. Geo-fencing/KYC: do we restrict Nigeria (or others) via the CCA's identity module, and is that compatible with a permissionless chain and our open-source stance?
+7. Does the Uniswap-created standard ERC-20 suffice, or do we need transfer restrictions (and then does the Launch UI still apply)?
+8. Governance: none over vaults; over operator-registry parameters only, immutable or timelocked?
+9. Treasury/funding: is the raise even needed? Compare with grants, paid services, or open-source funding.
+10. Are fee-in-token discounts a securities-risk amplifier (consumptive vs. investment framing)?
+11. Audit scope and bug bounty for the staking/slashing contracts (separate from the core audit).
+12. Sybil-resistance for professional guardians: stake doesn't prove independence or competence.
+13. Behaviour if Robinhood Chain's sequencer screening blocks a guardian/operator transaction during a challenge window.
+14. Exit plan if the token has near-zero adoption: sunset the registry without affecting any vault.

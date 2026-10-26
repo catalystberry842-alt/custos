@@ -147,7 +147,7 @@ export default function Setup() {
               <div className="row between"><span className="mut">Fallback</span><b>{cfg.fallbackDays ? `${cfg.fallbackDays}d` : "Off"}</b></div>
             </div>
             {warnings.map((w) => <p key={w} className="s accent">⚠ {w}</p>)}
-            <p className="s dim">Starting runs the <b>simulation</b>. Deploying a real vault needs the contracts deployed to Monad and an audit first (see README).</p>
+            <p className="s dim">Starting runs the <b>simulation</b>. A real vault needs the contracts deployed to Robinhood Chain after an audit and a testnet trial (see docs/DEPLOY-ROBINHOOD.md).</p>
           </div>
         )}
 

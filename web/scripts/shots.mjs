@@ -46,6 +46,14 @@ for (const [tag, vp, dpr, mobile] of [["mobile", { width: 390, height: 844 }, 2,
   await click(p, "Execute release");
   await shot("12-dashboard-released", false);
   await shot("12-dashboard-released-full");
+  // optional Real chain panel (Robinhood Chain testnet default; mainnet shows a real-funds warning)
+  await p.getByText("Real chain · optional").click();
+  await p.waitForSelector("[aria-label=Network]");
+  await p.locator("[aria-label=Network]").scrollIntoViewIfNeeded();
+  await shot("13-realchain-testnet", false);
+  await p.getByRole("radio", { name: /Mainnet/ }).click();
+  await p.waitForTimeout(200);
+  await shot("14-realchain-mainnet-warning", false);
   await ctx.close();
 }
 await b.close();

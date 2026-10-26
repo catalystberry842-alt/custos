@@ -6,6 +6,8 @@ solc_version = "0.8.26"
 evm_version = "cancun"
 optimizer = true
 optimizer_runs = 200
+# read-only access so test/RobinhoodChain.t.sol can grep src/ for forbidden opcodes (block.number etc.)
+fs_permissions = [{ access = "read", path = "./src" }]
 
 [fuzz]
 runs = 512
@@ -13,3 +15,18 @@ runs = 512
 [invariant]
 runs = 64
 depth = 32
+
+# ── Robinhood Chain (Arbitrum Orbit L2, ETH gas) ───────────────────────────────────────────
+# Public RPCs are rate-limited; pass --rpc-url <your Alchemy/QuickNode/... URL> for real work.
+# NO keys here. Signer is ALWAYS given on the forge CLI (--account <keystore> or --ledger).
+# Sources: https://docs.robinhood.com/chain/connecting/  and  /chain/deploy-smart-contracts/
+[rpc_endpoints]
+robinhood_testnet = "https://rpc.testnet.chain.robinhood.com"   # chain id 46630
+robinhood_mainnet = "https://rpc.mainnet.chain.robinhood.com"   # chain id 4663
+
+# Blockscout explorer API URLs (no API key needed; "empty" is the placeholder the official docs use).
+# NOTE: foundry's [etherscan] table has no `verifier` field, so ALWAYS pass `--verifier blockscout` on the CLI
+# (and, to be explicit, `--verifier-url <url below>`). See docs/DEPLOY-ROBINHOOD.md.
+[etherscan]
+robinhood_testnet = { key = "empty", chain = 46630, url = "https://explorer.testnet.chain.robinhood.com/api/" }
+robinhood_mainnet = { key = "empty", chain = 4663, url = "https://robinhoodchain.blockscout.com/api/" }

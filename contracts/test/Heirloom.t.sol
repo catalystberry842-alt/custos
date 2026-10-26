@@ -802,7 +802,7 @@ contract HeirloomAssetsTest is HeirloomBase {
         vm.warp(block.timestamp + CHALLENGE);
         v.executeRelease();
 
-        // someone sends MON and an unlisted token afterwards
+        // someone sends ETH and an unlisted token afterwards
         vm.deal(rando, 3 ether);
         vm.prank(rando);
         (bool ok,) = address(v).call{value: 3 ether}("");
@@ -867,7 +867,7 @@ contract HeirloomAssetsTest is HeirloomBase {
         vm.prank(g2);
         x.approveRelease();
         vm.warp(block.timestamp + CHALLENGE);
-        x.executeRelease(); // does NOT revert even though MON transfer fails
+        x.executeRelease(); // does NOT revert even though ETH transfer fails
         assertTrue(x.released());
         assertEq(address(x).balance, 5 ether); // stuck for now
 
@@ -949,7 +949,7 @@ contract HeirloomHostileTest is HeirloomBase {
         _release(x);
         assertTrue(x.released());
         assertEq(good.balanceOf(address(gb)), 55); // tokens still delivered
-        assertEq(address(x).balance, 2 ether); // MON stuck until redirect
+        assertEq(address(x).balance, 2 ether); // ETH stuck until redirect
     }
 
     // ───── reentrancy ─────

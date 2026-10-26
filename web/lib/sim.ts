@@ -35,14 +35,14 @@ export interface FeedItem {
 }
 
 export interface SimState {
-  v: 1;
+  v: 2;
   cfg: DemoConfig;
   now: number;
   snap: Snapshot;
   sent: string[];
   feed: FeedItem[];
   seq: number;
-  vaultMon: number;
+  vaultStable: number;
   /** keys of owner/guardian escalations per epoch, to decide about all-clear */
   epochSeen: number;
 }
@@ -83,7 +83,7 @@ export function initSim(cfg: DemoConfig = DEFAULT_CFG, now = Math.floor(Date.now
     guardianCount: cfg.guardians.length,
   });
   return {
-    v: 1, cfg, now, snap, sent: [], seq: 1, vaultMon: 1250, epochSeen: 1,
+    v: 2, cfg, now, snap, sent: [], seq: 1, vaultStable: 1250, epochSeen: 1,
     feed: [
       { id: 0, t: now, kind: "sys", title: "Simulation started", body: `${cfg.ownerName} checked in just now. Timer: ${cfg.intervalDays} days. Nothing here is on-chain.` },
     ],
@@ -192,7 +192,7 @@ export function executeRelease(state: SimState): SimState {
   const s = clone(state);
   try {
     M.execute(s.snap, s.now);
-    push(s, { kind: "chain", title: "Released", body: `${s.vaultMon} MON (simulated) sent to ${s.cfg.beneficiaryName}.` });
+    push(s, { kind: "chain", title: "Released", body: `${s.vaultStable.toLocaleString()} USD-stablecoin (simulated) sent to ${s.cfg.beneficiaryName}.` });
   } catch (e) {
     push(s, { kind: "chain", title: "Revert", body: explainRevert((e as Error).message) });
   }
@@ -313,7 +313,7 @@ export function loadSim(): SimState | null {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const j = JSON.parse(raw) as SimState;
-    return j.v === 1 ? j : null;
+    return j.v === 2 ? j : null;
   } catch { return null; }
 }
 export function saveSim(s: SimState) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch { /* ignore */ } }

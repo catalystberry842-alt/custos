@@ -109,7 +109,7 @@ contract ReentrantToken is MockERC20 {
     }
 }
 
-/// Beneficiary that tries to re-enter on every MON it receives.
+/// Beneficiary that tries to re-enter on every ETH it receives.
 contract ReentrantBeneficiary {
     Heirloom public vault;
     uint256 public attempts;
@@ -138,7 +138,7 @@ contract ReentrantBeneficiary {
     }
 }
 
-/// Beneficiary that rejects MON until told otherwise.
+/// Beneficiary that rejects ETH until told otherwise.
 contract PickyBeneficiary {
     bool public accept;
 

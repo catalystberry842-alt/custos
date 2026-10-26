@@ -7,11 +7,11 @@ export default function Landing() {
   return (
     <main className="wrap wide">
       <section className="hero">
-        <span className="pill hot" style={{ alignSelf: "flex-start" }}>Monad · non-custodial · open source MVP</span>
+        <span className="pill hot" style={{ alignSelf: "flex-start" }}>Robinhood Chain · non-custodial · open source MVP</span>
         <h1>Your crypto shouldn&apos;t<br />die with you.</h1>
         <p>
-          Every year, coins vanish because their owner died or lost access and nobody else could ever reach them.
-          Heirloom is a dead-man&apos;s switch: keep checking in and nothing changes. Go silent for too long and the
+          Every year, savings held onchain, stablecoins included, become unreachable because their owner died or lost access.
+          Heirloom is a dead-man&apos;s switch for secure custody: keep checking in and nothing changes. Go silent for too long and the
           people you trust can release your vault to the person you chose. No company holds your keys.
         </p>
         <div className="row wrapflex">
@@ -68,13 +68,13 @@ export default function Landing() {
         <span className="label">Why this design</span>
         <div className="stack mut">
           <p><b style={{ color: "var(--text)", fontWeight: 600 }}>Non-custodial.</b> Each owner gets their own small contract. We never see keys or seed phrases and never ask for them.</p>
-          <p><b style={{ color: "var(--text)", fontWeight: 600 }}>No oracle.</b> The deadline is plain block time. The agent only reminds; if it&apos;s down, nothing is released early.</p>
-          <p><b style={{ color: "var(--text)", fontWeight: 600 }}>Honest limits.</b> Unaudited MVP. Not legal advice and not a will. Local simulation only: no mainnet deployment, no token.</p>
+          <p><b style={{ color: "var(--text)", fontWeight: 600 }}>No oracle.</b> The deadline is plain block timestamps, never block numbers (which are only an estimate on Robinhood Chain). The agent only reminds; if it&apos;s down, nothing is released early.</p>
+          <p><b style={{ color: "var(--text)", fontWeight: 600 }}>Honest limits.</b> Unaudited MVP. Not legal advice and not a will. The demo is a simulation: nothing is deployed to a live network, and there is no token.</p>
         </div>
       </section>
 
       <footer className="section" style={{ paddingBottom: 28 }}>
-        <p className="dim s">Heirloom is an experimental open-source prototype for Monad. Simulation mode uses fake funds and fake time. Read the README for security notes and limitations.</p>
+        <p className="dim s">Heirloom is an experimental open-source security prototype designed for Robinhood Chain. Simulation mode uses fake funds and fake time. Read the README for security notes and limitations.</p>
       </footer>
     </main>
   );

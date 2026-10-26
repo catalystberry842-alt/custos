@@ -1,17 +1,21 @@
 #!/usr/bin/env bash
-# Local-only end-to-end on a throwaway anvil node (chain id 31337). No keys: uses anvil's unlocked dev accounts.
+# Local-only end-to-end on a throwaway anvil node (chain id 31337 by default; E2E_CHAIN_ID=46630 mimics Robinhood testnet
+# and uses script/DeployRobinhood.s.sol, whose chain guard accepts 4663/46630/31337/1337). No keys: uses anvil's unlocked dev accounts.
 # Flow: deploy factory → create vault → deposit → owner silent → guardians approve → execute → beneficiary paid.
 set -euo pipefail
 export PATH="$PATH:$HOME/.foundry/bin"
 cd "$(dirname "$0")/../contracts"
 PORT=18545; RPC=http://127.0.0.1:$PORT
-anvil --port $PORT --silent & APID=$!
+CID=${E2E_CHAIN_ID:-31337}
+SCRIPT=script/Deploy.s.sol; [ "$CID" = 31337 ] || SCRIPT=script/DeployRobinhood.s.sol
+anvil --port $PORT --chain-id $CID --silent & APID=$!
 trap 'kill $APID 2>/dev/null || true' EXIT
 for i in $(seq 1 30); do cast chain-id --rpc-url $RPC >/dev/null 2>&1 && break; sleep 0.3; done
 ACCTS=($(cast rpc --rpc-url $RPC eth_accounts | tr '[],"' ' '))
 OWNER=${ACCTS[0]}; HEIR=${ACCTS[1]}; G1=${ACCTS[2]}; G2=${ACCTS[3]}; G3=${ACCTS[4]}
+echo "chain-id=$(cast chain-id --rpc-url $RPC) script=$SCRIPT"
 echo "owner=$OWNER heir=$HEIR guardians=$G1 $G2 $G3"
-FACT=$(forge script script/Deploy.s.sol --rpc-url $RPC --unlocked --sender $OWNER --broadcast 2>&1 | grep -oE "HeirloomFactory: 0x[0-9a-fA-F]{40}" | awk '{print $2}')
+FACT=$(forge script $SCRIPT --rpc-url $RPC --unlocked --sender $OWNER --broadcast 2>&1 | grep -oE "HeirloomFactory: 0x[0-9a-fA-F]{40}" | awk '{print $2}')
 echo "factory=$FACT"
 send() { cast send --rpc-url $RPC --unlocked "$@" >/dev/null; }
 send --from $OWNER $FACT "create((address,address[],uint8,uint64,uint64,uint64,uint64))" "($HEIR,[$G1,$G2,$G3],2,2592000,604800,259200,2592000)"
@@ -19,6 +23,10 @@ VAULT=$(cast call --rpc-url $RPC $FACT "vaultsOf(address)(address[])" $OWNER | t
 echo "vault=$VAULT"
 send --from $OWNER $VAULT --value 5ether
 echo "status (0=Active): $(cast call --rpc-url $RPC $VAULT 'status()(uint8)')"
+# Robinhood Chain: block.number is an L1 estimate, so MANY blocks without time passing must not move any deadline
+cast rpc --rpc-url $RPC anvil_mine 0x186a0 >/dev/null   # 100,000 blocks
+echo "status after 100k blocks, no time (still 0=Active): $(cast call --rpc-url $RPC $VAULT 'status()(uint8)')"
+[ "$(cast call --rpc-url $RPC $VAULT 'status()(uint8)')" = 0 ] || { echo "E2E FAIL: block count moved the timer"; exit 1; }
 cast rpc --rpc-url $RPC evm_increaseTime $((30*86400+7*86400+10)) >/dev/null; cast rpc --rpc-url $RPC evm_mine >/dev/null
 echo "status after silence (2=AwaitingGuardians): $(cast call --rpc-url $RPC $VAULT 'status()(uint8)')"
 BEFORE=$(cast balance --rpc-url $RPC $HEIR)

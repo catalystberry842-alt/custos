@@ -2,7 +2,7 @@
 
 > "Your crypto shouldn't die with you."
 
-Working name: **Heirloom**. A non-custodial crypto dead-man's switch for Monad (EVM, mainnet chain id 143).
+Working name: **Heirloom**. A non-custodial dead-man's switch for stablecoins, ETH and ERC-20s, security/custody tooling targeting **Robinhood Chain** (Arbitrum Orbit L2; mainnet 4663, testnet 46630; ETH gas). Originally scoped for Monad; retargeted 2026-10-26.
 Everything here is local-only: no deploys, no repos pushed, no tokens launched, no keys held.
 
 ## 1. Components
@@ -11,15 +11,16 @@ Everything here is local-only: no deploys, no repos pushed, no tokens launched, 
 |---|---|---|
 | `contracts/` | `Heirloom` (per-owner switch vault) + `HeirloomFactory` + `IGuardianStaking` stub | Solidity 0.8.26, Foundry |
 | `agent/` | Check-in agent: scheduler, escalation state machine, guardian alerts, adapters (mock / Telegram / console), LLM wording hook with rules fallback | Node 20, TypeScript, vitest |
-| `web/` | Landing, setup wizard, dashboard, "Fast-forward time" simulation, optional wallet connect | Next.js (app router), wagmi + viem (injected only) |
-| `docs/token-design.md` | Optional token-hook design (NOT deployed) | Markdown |
+| `web/` | Landing, setup wizard, dashboard, "Fast-forward time" simulation, optional wallet connect | Next.js (app router), viem (injected wallet only) |
+| `docs/token-design.md` | Optional token-hook design + Robinhood launch section (NOT implemented) | Markdown |
+| `docs/DEPLOY-ROBINHOOD.md`, `scripts/deploy-robinhood.sh`, `contracts/script/DeployRobinhood.s.sol` | Deploy/verify instructions + guarded, dry-run-by-default tooling (never run by this project) | Markdown, bash, Foundry |
 
 ## 2. Contract architecture
 
 **One contract per owner** (deployed through a factory). Blast radius of any bug is one owner's vault, not a shared pool.
 
 ### Asset model — deposit model (chosen)
-The owner *deposits* native MON and whitelisted ERC-20s into the vault and may withdraw any time while it is alive.
+The owner *deposits* native ETH and whitelisted ERC-20s (stablecoins) into the vault and may withdraw any time while it is alive.
 Why not the approval ("pull") model?
 * Approvals leave a standing allowance on the owner's wallet; a vault bug or a malicious token hook = drain risk against the *whole wallet*, and balances can move away so the heir finds an empty wallet.
 * Approval pull needs the owner's wallet to still hold the tokens at release time and each token's `transferFrom` to behave; deposit gives a hard guarantee: what is in the vault at release goes to the heir.
@@ -31,7 +32,7 @@ Why not the approval ("pull") model?
 * **Beneficiary** – fixed by owner. Receives funds on release. After release can only redirect payout address.
 * **Anyone** – can execute a ripe release (keeper-friendly), can forward stray assets after release.
 
-### Timeline (all deterministic, oracle-free — only `block.timestamp`)
+### Timeline (all deterministic, oracle-free — only `block.timestamp`; `block.number` is an L1 estimate on Robinhood Chain and is never read)
 ```
 checkIn ──── interval ────┬──── grace ────┬── guardians vote ──┬─ challenge window ─┬─ executable
  (anchor)                 │ owner "late"  │ approvals allowed  │ owner can cancel   │ anyone executes
@@ -40,7 +41,7 @@ checkIn ──── interval ────┬──── grace ────┬�
 * `anchor = max(lastCheckIn, pausedUntil)`; `expiry = anchor + interval`; `graceEnd = expiry + grace`.
 * Guardians can `approveRelease()` only when `now > graceEnd` and not paused. Votes are keyed by an **epoch** that increments on every owner check-in/config change, so stale votes are void.
 * When approvals reach the threshold the **challenge window** starts. Any owner activity (check-in, config change, withdraw, pause) cancels it: epoch++, votes cleared, `ReleaseCancelled` event.
-* After `challengeEnd`, anyone calls `executeRelease()`: state flips to `Released` first (checks-effects-interactions + reentrancy guard), then native MON and every listed token is forwarded.
+* After `challengeEnd`, anyone calls `executeRelease()`: state flips to `Released` first (checks-effects-interactions + reentrancy guard), then native ETH and every listed token is forwarded.
 * **Guardian-less fallback** (optional, `fallbackDelay` ≥ 7d or 0=off): if guardians vanish (lost keys, unresponsive), the beneficiary can claim after `graceEnd + fallbackDelay`. Owner can still cancel by checking in until claimed. Solves guardian liveness-failure.
 * **Pause / vacation mode**: `pause(duration ≤ 90d)` pushes the anchor to `now+duration`. It self-expires — a dead owner cannot lock funds forever by pausing.
 
@@ -66,6 +67,7 @@ checkIn ──── interval ────┬──── grace ────┬�
 | **Griefing: vote spam / dust** | Votes bounded by guardian set; no unbounded loops over user data. | — |
 | **Oracle-free liveness** | No oracle, no off-chain dependency for correctness: the agent only *reminds*; deadline is pure on-chain time. If agent is down, nothing is lost or released early. | Agent downtime = fewer reminders → higher chance owner forgets. |
 | **Miner/validator timestamp skew** | Windows are ≥ 1 day; skew of seconds irrelevant. | — |
+| **Arbitrum-chain differences** (`block.number` = L1 estimate, constant `prevrandao`, aliased L1 senders, L1-data gas fee, sequencer sanctions screening) | No `block.number`/`prevrandao`/`blockhash`/`tx.origin`/`gasleft` in the contracts (tests + source grep); address checks are exact; release uses fixed per-transfer gas caps. | Worst-case release gas must be measured on testnet; sanctioned addresses can't transact; aliased addresses must be entered for L1-contract guardians. |
 | **Contract bug** | Small surface, no upgradability, no admin, no external deps, extensive tests + fuzz. | **Unaudited.** Do not use with real funds before an audit. |
 | **Agent compromise** | Agent holds no keys; it can only send messages. It reads chain state; owner check-in is a user-signed tx. | Phishing via spoofed reminders: link domains must be pinned (README). |
 | **LLM misuse** | LLM only writes wording; all state/time decisions in deterministic code; output sanitized & length-capped; rules fallback. | Prompt injection limited to wording because inputs are structured facts only. |
@@ -78,7 +80,7 @@ checkIn ──── interval ────┬──── grace ────┬�
 * A tick loop (`runTick`) is idempotent: dedupes by `(switchId, stage, epoch)`.
 
 ## 5. Web demo
-Next.js app, dark minimal, one accent (amber `#f5b942`), mobile-first (iPhone 13: 390×844). Pages: `/` story, `/setup` wizard, `/dashboard` countdown + simulation controls. Demo mode runs a deterministic in-browser simulation of the same state machine (ported from the contract/agent), labelled **SIMULATION** everywhere. Wallet connect is optional (wagmi injected connector only), reading chain 143 config; disabled unless configured.
+Next.js app, dark minimal, one accent (amber `#f5b942`), mobile-first (iPhone 13: 390×844). Pages: `/` story, `/setup` wizard, `/dashboard` countdown + simulation controls. Demo mode runs a deterministic in-browser simulation of the same state machine (ported from the contract/agent), labelled **SIMULATION** everywhere. Wallet connect is optional (viem + injected wallet only) with Robinhood Chain Testnet (46630, default) / Mainnet (4663) definitions; the simulation stays the default.
 
 ## 6. Testing
 * Foundry: unit, scenario (time travel), fuzz, reentrancy attackers, hostile tokens.

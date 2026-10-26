@@ -4,7 +4,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Heirloom: your crypto shouldn't die with you",
-  description: "A non-custodial dead-man's switch for Monad. Simulation demo.",
+  description: "A non-custodial dead-man's switch for stablecoins and ETH, built for Robinhood Chain. Security tooling, simulation demo.",
 };
 export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#0b0b0c" };
 

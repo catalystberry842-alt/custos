@@ -79,7 +79,7 @@ export default function Dashboard() {
             <div className="row between">
               <div>
                 <span className="label">{s.cfg.ownerName}&apos;s vault</span>
-                <p className="s mut">{s.vaultMon.toLocaleString()} MON · fake</p>
+                <p className="s mut">{s.vaultStable.toLocaleString()} USD stablecoin · fake</p>
               </div>
               <span className={`pill ${hot ? (over ? "solid" : "hot") : ""}`}>{STATUS_LABEL[st]}</span>
             </div>

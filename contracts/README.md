@@ -1,66 +1,17 @@
-## Foundry
+# Heirloom contracts
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+Foundry project (solc 0.8.26, EVM `cancun`, optimizer 200). Designed for Robinhood Chain (Arbitrum Orbit L2). **Unaudited, never deployed.**
 
-Foundry consists of:
-
-- **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
-- **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
-- **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
-- **Chisel**: Fast, utilitarian, and verbose solidity REPL.
-
-## Documentation
-
-https://book.getfoundry.sh/
-
-## Usage
-
-### Build
-
-```shell
-$ forge build
+```bash
+forge build
+forge test                         # 80 tests: unit, scenario, fuzz, reentrancy, hostile tokens, Robinhood-chain timing
+forge coverage --report summary
 ```
 
-### Test
-
-```shell
-$ forge test
-```
-
-### Format
-
-```shell
-$ forge fmt
-```
-
-### Gas Snapshots
-
-```shell
-$ forge snapshot
-```
-
-### Anvil
-
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+* `src/Heirloom.sol` per-owner vault; `src/HeirloomFactory.sol`; `src/interfaces/`.
+* **Time = `block.timestamp` only.** `block.number` is an L1-block estimate on Robinhood Chain; `test/RobinhoodChain.t.sol` proves that
+  huge/backwards/frozen block numbers never move a deadline and greps `src/` for forbidden globals.
+* `script/Deploy.s.sol` local anvil only. `script/DeployRobinhood.s.sol` chain-guarded (46630 / 4663 / local), mainnet needs `HEIRLOOM_MAINNET_OK=yes`.
+  The signer comes only from the forge CLI (`--account <keystore>` / `--ledger`); no key is read from env or files. Omit `--broadcast` to simulate.
+* `foundry.toml` has `robinhood_testnet` / `robinhood_mainnet` RPC endpoints and Blockscout explorer entries (no keys).
+  Full steps, checklist and verification: [`../docs/DEPLOY-ROBINHOOD.md`](../docs/DEPLOY-ROBINHOOD.md).
