@@ -33,7 +33,7 @@ Re-check them before you deploy; networks change.
 | `block.number` = **estimate of the L1 block number**, updates only periodically | Never read. All timing is `block.timestamp`. Tests in `contracts/test/RobinhoodChain.t.sol` roll block numbers by huge amounts (forwards, backwards, frozen) and prove no deadline moves; a test also greps `src/` for `block.number`, `prevrandao`, `difficulty`, `blockhash(`, `block.coinbase`, `tx.origin`, `ArbSys`, `gasleft(`. |
 | `block.prevrandao` / `difficulty` constant | Not used. |
 | `blockhash`, `block.coinbase` (= fee account) | Not used. |
-| 96 KB code limit (24 KB on Ethereum) | Heirloom ≈ 13.8 KB, factory ≈ 17.4 KB: well below even Ethereum's limit, so the same bytecode is portable. |
+| 96 KB code limit (24 KB on Ethereum) | Heirloom ≈ 19.9 KB, factory ≈ 22.8 KB (built with `via_ir = true`; `test/RobinhoodChain.t.sol` asserts both stay under 24,576 bytes): below even Ethereum's limit, so the same bytecode is portable. Compile with `via_ir` for verification too (same `foundry.toml` settings). |
 | Gas = L2 execution + L1 data fee; `gasleft()`/estimation differ | `gasleft()` unused. The only gas numbers are fixed per-transfer caps (`TRANSFER_GAS` = 300 000) in the release loop. Check real release gas on testnet (§3, step 6). If `forge script` under-estimates, add `--gas-estimate-multiplier 200`. |
 | Aliased `msg.sender` for L1→L2 messages | Owner/guardian/beneficiary checks are by exact address; `tx.origin` is never used. A guardian that is an **L1 contract** must be entered as its **aliased L2 address** (or just use an EOA / L2 smart account). |
 | ERC-4337 smart accounts are first class | Contracts are accepted as owner, guardian and beneficiary (tested). |

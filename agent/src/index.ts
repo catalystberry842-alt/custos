@@ -7,4 +7,6 @@ export * from "./channels.js";
 export * from "./chain.js";
 export * from "./store.js";
 export * from "./agent.js";
+export * from "./managed.js";
+export * from "./brand.js";
 export * from "./server.js";

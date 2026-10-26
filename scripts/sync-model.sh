@@ -8,6 +8,6 @@ dst="$here/../web/lib/agent"
 mkdir -p "$dst"
 for f in chainModel types engine explain wording; do
   { echo "// AUTO-COPIED from agent/src/$f.ts by scripts/sync-model.sh — do not edit here."; \
-    sed -E "s#from \"(\./[A-Za-z]+)\.js\"#from \"\1\"#g" "$src/$f.ts"; } > "$dst/$f.ts"
+    sed -E "s#from \"\./brand\.js\"#from \"../brand\"#g; s#from \"(\./[A-Za-z]+)\.js\"#from \"\1\"#g" "$src/$f.ts"; } > "$dst/$f.ts"
 done
 echo "synced agent model → web/lib/agent"

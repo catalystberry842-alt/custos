@@ -21,9 +21,11 @@ export interface SwitchProfile {
   owner: Contact;
   beneficiary: Contact;
   guardians: Contact[];
+  /** named successor (gets the vault + the agent's role if guardians vote Handover) */
+  successor?: Contact;
 }
 
-export type Audience = "owner" | "guardians" | "beneficiary";
+export type Audience = "owner" | "guardians" | "beneficiary" | "successor";
 
 export type Stage =
   | "nudge"
@@ -35,7 +37,14 @@ export type Stage =
   | "challenge_started"
   | "executable"
   | "released"
-  | "all_clear";
+  | "all_clear"
+  // ── managed AI agent (the monitoring side) ──
+  | "agent_spent"
+  | "agent_near_limit"
+  | "agent_blocked"
+  | "agent_frozen"
+  | "agent_unfrozen"
+  | "agent_handover";
 
 export type Tone = "friendly" | "firm" | "urgent" | "calm";
 
@@ -70,6 +79,27 @@ export interface MessageFacts {
   approvalsHave: number;
   approvalsNeed: number;
   guardianTotal: number;
+  // ── AI agent facts (all pre-formatted by deterministic code) ──
+  agentName?: string;
+  /** what the pending guardian decision does: send funds to the beneficiary, or hand the vault to the successor */
+  outcome?: "release" | "handover";
+  successorName?: string;
+  /** "lapsed" (owner went quiet), "guardian", "owner" */
+  freezeReason?: "lapsed" | "guardian" | "owner";
+  /** most recent payment(s), e.g. "$42.50" to "Stripe" */
+  amountText?: string;
+  payee?: string;
+  spendCount?: number;
+  totalText?: string;
+  /** e.g. "$250 per day" */
+  limitText?: string;
+  usedText?: string;
+  remainingText?: string;
+  windowResets?: string;
+  /** plain-language reason an attempt was blocked */
+  blockText?: string;
+  /** when the agent stops working if the owner stays silent */
+  cutoffText?: string;
 }
 
 export interface Plan {

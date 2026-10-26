@@ -1,7 +1,8 @@
 #!/usr/bin/env node
+import { BRAND } from "./brand.js";
 /**
- * heirloom-agent CLI
- *   demo [--scenario silent|return|late] [--claude]   simulated story with a fake clock; no network
+ * agent CLI (package name from brand.ts)
+ *   demo [--scenario silent|return|late|agent|agent-return] [--claude]   simulated story with a fake clock; no network
  *   serve [config.json]                               real clock; Telegram if TELEGRAM_BOT_TOKEN, else console
  */
 import { readFileSync } from "node:fs";
@@ -9,7 +10,8 @@ import { randomBytes } from "node:crypto";
 import { Agent } from "./agent.js";
 import { ConsoleChannel, TelegramChannel, MockChannel, type Channel } from "./channels.js";
 import { SimChain, ViemChainReader, type ChainReader } from "./chain.js";
-import { DAY, HOUR, newSnapshot, status } from "./chainModel.js";
+import { DAY, HOUR, agentState, newSnapshot, status, type AgentModel } from "./chainModel.js";
+import { MockManagedAgent } from "./managed.js";
 import { createCheckInServer } from "./server.js";
 import { JsonFileStore, MemoryStore } from "./store.js";
 import type { SwitchProfile } from "./types.js";
@@ -21,7 +23,10 @@ const flag = (n: string) => { const i = args.indexOf(n); return i >= 0 ? args[i 
 
 function demoProfile(): SwitchProfile {
   const c = (id: string, name: string) => ({ id, name, endpoints: [{ channel: "mock", address: id }, { channel: "mock", address: id + "-email" }] });
-  return { id: "demo-ada", owner: c("ada", "Ada"), beneficiary: c("emeka", "Emeka"), guardians: [c("bola", "Bola"), c("chidi", "Chidi"), c("dayo", "Dayo")] };
+  return {
+    id: "demo-ada", owner: c("ada", "Ada"), beneficiary: c("emeka", "Emeka"), guardians: [c("bola", "Bola"), c("chidi", "Chidi"), c("dayo", "Dayo")],
+    successor: c("tunde", "Tunde"),
+  };
 }
 
 async function demo() {
@@ -31,7 +36,13 @@ async function demo() {
   const when = () => { const m = clock - t0; return `Day ${String(Math.floor(m / DAY)).padStart(2, "0")} ${String(Math.floor((m % DAY) / HOUR)).padStart(2, "0")}:00`; };
   const profile = demoProfile();
   const chain = new SimChain();
-  chain.add(profile.id, newSnapshot(clock, { guardianCount: 3, threshold: 2 }));
+  const isAgent = scenario.startsWith("agent");
+  const model: AgentModel = {
+    name: "Atlas", periodMs: DAY, lateAllowanceMs: 7 * DAY, ownerFrozen: false, guardianFrozenEpoch: 0,
+    limits: [{ asset: "USDC", perTx: 50, perPeriod: 100, periodStart: 0, spent: 0 }], recipients: ["Acme Cloud", "Datafeed Inc"],
+  };
+  chain.add(profile.id, newSnapshot(clock, { guardianCount: 3, threshold: 2, ...(isAgent ? { agent: model, successorName: "Tunde" } : {}) }));
+  const managed = new MockManagedAgent(chain, () => clock);
   const mock = new MockChannel("mock");
   const wording = args.includes("--claude") ? wordingFromEnv() : new RulesWording();
   const printer: Channel = {
@@ -42,8 +53,8 @@ async function demo() {
   };
   const approvals: { at: number; g: string }[] = [];
   const agent = new Agent({
-    profiles: [profile], chain, channels: { mock: printer }, store: new MemoryStore(), wording,
-    baseUrl: "https://checkin.heirloom.example", appUrl: "https://app.heirloom.example",
+    profiles: [profile], chain, channels: { mock: printer }, store: new MemoryStore(), wording, managed: isAgent ? managed : undefined,
+    baseUrl: `https://checkin.${BRAND.slug}.example`, appUrl: `https://app.${BRAND.slug}.example`,
     linkSecret: "demo-secret-demo-secret", now: () => clock,
     onDelivery: (d) => {
       if (!d.address.endsWith("-email")) {
@@ -58,7 +69,7 @@ async function demo() {
       }
     },
   });
-  console.log(`\n=== Heirloom agent demo (SIMULATED clock, mock channels, scenario=${scenario}, wording=${wording.name}) ===\n`);
+  console.log(`\n=== ${BRAND.name} agent demo (SIMULATED clock, mock channels, scenario=${scenario}, wording=${wording.name}) ===\n`);
   const end = t0 + 60 * DAY;
   let returned = false, lateDone = false, executed = false;
   while (clock <= end) {
@@ -67,11 +78,28 @@ async function demo() {
     for (const a of approvals.filter((x) => x.at <= clock)) {
       approvals.splice(approvals.indexOf(a), 1);
       try {
-        const r = chain.approve(profile.id, a.g, clock);
-        console.log(`[${when()}] ⛓  guardian ${a.g} approves release${r.challengeStarted ? " → challenge window starts" : ""}\n`);
+        const r = chain.approve(profile.id, a.g, clock, isAgent ? "handover" : "release");
+        console.log(`[${when()}] ⛓  guardian ${a.g} approves ${isAgent ? "HANDOVER to Tunde" : "release"}${r.challengeStarted ? " → challenge window starts" : ""}\n`);
       } catch { /* ignore */ }
     }
     const st = status(snap, clock);
+    if (isAgent) {
+      const day = Math.floor((clock - t0) / DAY), hr = (clock - t0) % DAY === 0;
+      const tries: Record<number, [string, number][]> = {
+        2: [["Acme Cloud", 30]], 3: [["Scam LLC", 30], ["Acme Cloud", 500]], 4: [["Datafeed Inc", 45], ["Acme Cloud", 40]],
+        45: [["Acme Cloud", 20]],
+      };
+      if (hr && tries[day]) for (const [to, amt] of tries[day]!) {
+        const r = managed.attempt(profile.id, "USDC", to, amt);
+        console.log(`[${when()}] 🤖 Atlas tries to pay ${to} ${amt} USDC → ${r.ok ? "paid" : "BLOCKED (" + r.reason + ")"}\n`);
+      }
+      if (scenario === "agent-return" && !returned && agentState(snap, clock) === "frozen_lapsed" && clock - snap.lastCheckIn > snap.intervalMs + snap.graceMs + 2 * DAY) {
+        returned = true;
+        console.log(`[${when()}] ✋ Ada is back and replies "/checkin"`);
+        console.log("    bot: " + (await agent.handleInbound("mock", "ada", "/checkin")) + "\n");
+        console.log(`    status → ${await agent.handleInbound("mock", "ada", "/status")}\n`);
+      }
+    }
     if (scenario === "late" && !lateDone && st === "grace" && clock - snap.lastCheckIn > snap.intervalMs + 2 * DAY) {
       lateDone = true;
       console.log(`[${when()}] ✋ Ada replies "/checkin" to the bot`);
@@ -86,7 +114,7 @@ async function demo() {
     if (st === "executable" && !executed) {
       executed = true;
       chain.execute(profile.id, clock);
-      console.log(`[${when()}] ⛓  anyone executes the release → funds go to ${profile.beneficiary.name}\n`);
+      console.log(`[${when()}] ⛓  anyone executes the ${isAgent ? "handover → vault + funds go to Tunde, Atlas's permissions are removed" : "release → funds go to " + profile.beneficiary.name}\n`);
     }
     if (st === "released" && (await agent.tick()) === 0) break;
     clock += 3 * HOUR;

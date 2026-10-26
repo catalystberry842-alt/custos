@@ -186,3 +186,22 @@ if the token or registry dies every vault keeps working.
 12. Sybil-resistance for professional guardians: stake doesn't prove independence or competence.
 13. Behaviour if Robinhood Chain's sequencer screening blocks a guardian/operator transaction during a challenge window.
 14. Exit plan if the token has near-zero adoption: sunset the registry without affecting any vault.
+
+## 8. Supervising AI agents (design only, nothing implemented)
+
+The AI-agent framing adds two roles where a **bond** (stake) could matter. As everywhere in this document: opt-in per vault, never able to
+touch a vault's funds, timers, destinations or limits, and **no price, yield or return is promised or implied**.
+
+| Role | What they do for an agent's owner | Why a bond could help |
+|---|---|---|
+| **Guardian-supervisor** | Holds a guardian seat on vaults that carry an AI agent; watches for a lapsed owner, can freeze the agent, and votes on handover/shutdown | Owners get a checkable signal that the guardian can be held to account if it acts dishonestly (e.g. colludes for an early outcome). The contract already stops destination changes, so slashing targets *process* faults: false freezes, missed duties, provable collusion. |
+| **Operator (monitoring service)** | Runs the check-in assistant: watches the agent's activity, tells the owner when it spends, nears limits or is frozen | An owner buying "we will tell you within N minutes" wants an SLA with recourse. |
+
+Open problems specific to agents:
+* **Provable faults are narrow.** "The operator didn't warn me" or "the guardian froze too eagerly" is hard to prove on-chain. Only objective, on-chain-checkable faults (e.g. a guardian froze an owner who was provably on time: impossible by contract; an operator signed an attestation it later contradicted) can be slashed. Everything else stays off-chain reputation.
+* **Don't re-introduce a trusted party.** Staked supervisors must not be *required*: friends, family or a co-founder remain valid guardians with zero stake. A stake requirement would only be a filter an owner chooses to apply.
+* **Stake never gates the agent.** An agent's limits, freeze and handover work identically whether or not any guardian or operator is staked; if the staking registry disappears, every vault still works.
+* **Conflicts.** A supervisor must not also be the successor or beneficiary of the same vault: the UI warns today; a registry would enforce it.
+* **Legal.** Bonded supervision services and any token that backs them can raise securities, money-transmission and licensing questions (see §4 and §7.4). Treat this section as a thought experiment, and take legal advice before building anything.
+
+Interface sketch (unchanged `IGuardianStaking`): add role ids `GUARDIAN_SUPERVISOR` and `AGENT_OPERATOR` to `isEligible(operator, role)`; the vault stays ignorant of it.

@@ -5,10 +5,25 @@
  */
 import * as M from "./agent/chainModel";
 import { DAY, HOUR, type Snapshot } from "./agent/chainModel";
-import { decide, fmtDate } from "./agent/engine";
+import { decide, fmtAmount, fmtDate, safeLabel } from "./agent/engine";
+import { BRAND } from "./brand";
 import { nextSteps } from "./agent/explain";
 import { rulesIntro } from "./agent/wording";
 import type { Action, Audience, Contact, Stage, SwitchProfile } from "./agent/types";
+
+/** The AI agent the vault supervises (optional: leave out for a plain inheritance vault). */
+export interface DemoAgentCfg {
+  name: string;
+  asset: string; // "USDC"
+  perTx: number;
+  perPeriod: number;
+  periodDays: number;
+  /** allowlisted payees */
+  recipients: string[];
+  /** "grace": keeps working until the grace period ends; "deadline": freezes the moment a check-in is missed */
+  freezeAt: "grace" | "deadline";
+  successorName: string;
+}
 
 export interface DemoGuardian { id: string; name: string; address?: string }
 export interface DemoConfig {
@@ -21,6 +36,7 @@ export interface DemoConfig {
   graceDays: number;
   challengeDays: number;
   fallbackDays: number; // 0 = off
+  agent?: DemoAgentCfg;
 }
 
 export type FeedKind = "chain" | "agent" | "you" | "sys";
@@ -35,8 +51,10 @@ export interface FeedItem {
 }
 
 export interface SimState {
-  v: 2;
+  v: 3;
   cfg: DemoConfig;
+  /** everything the managed (mock) AI agent did or tried to do */
+  events: M.AgentEvent[];
   now: number;
   snap: Snapshot;
   sent: string[];
@@ -60,7 +78,14 @@ export const DEFAULT_CFG: DemoConfig = {
   graceDays: 7,
   challengeDays: 3,
   fallbackDays: 30,
+  agent: {
+    name: "Atlas", asset: "USDC", perTx: 50, perPeriod: 200, periodDays: 1,
+    recipients: ["Acme Cloud", "Datafeed Inc"], freezeAt: "grace", successorName: "Tunde",
+  },
 };
+
+/** The same config without an AI agent (a plain inheritance vault). */
+export const PLAIN_CFG: DemoConfig = { ...DEFAULT_CFG, agent: undefined };
 
 const contact = (id: string, name: string): Contact => ({ id, name, endpoints: [{ channel: "telegram-sim", address: id }] });
 
@@ -70,6 +95,7 @@ export function profileOf(cfg: DemoConfig): SwitchProfile {
     owner: contact("owner", cfg.ownerName),
     beneficiary: contact("beneficiary", cfg.beneficiaryName),
     guardians: cfg.guardians.map((g) => contact(g.id, g.name)),
+    successor: cfg.agent?.successorName ? contact("successor", cfg.agent.successorName) : undefined,
   };
 }
 
@@ -81,11 +107,17 @@ export function initSim(cfg: DemoConfig = DEFAULT_CFG, now = Math.floor(Date.now
     fallbackMs: cfg.fallbackDays * DAY,
     threshold: cfg.threshold,
     guardianCount: cfg.guardians.length,
+    successorName: cfg.agent?.successorName || undefined,
+    agent: cfg.agent && {
+      name: cfg.agent.name, periodMs: cfg.agent.periodDays * DAY, lateAllowanceMs: cfg.agent.freezeAt === "grace" ? cfg.graceDays * DAY : 0,
+      ownerFrozen: false, guardianFrozenEpoch: 0, recipients: [...cfg.agent.recipients],
+      limits: [{ asset: cfg.agent.asset, perTx: cfg.agent.perTx, perPeriod: cfg.agent.perPeriod, periodStart: 0, spent: 0 }],
+    },
   });
   return {
-    v: 2, cfg, now, snap, sent: [], seq: 1, vaultStable: 1250, epochSeen: 1,
+    v: 3, events: [], cfg, now, snap, sent: [], seq: 1, vaultStable: 1250, epochSeen: 1,
     feed: [
-      { id: 0, t: now, kind: "sys", title: "Simulation started", body: `${cfg.ownerName} checked in just now. Timer: ${cfg.intervalDays} days. Nothing here is on-chain.` },
+      { id: 0, t: now, kind: "sys", title: "Simulation started", body: `${cfg.ownerName} checked in just now. Timer: ${cfg.intervalDays} days.${cfg.agent ? ` ${cfg.agent.name} may spend up to ${fmtAmount(cfg.agent.asset, cfg.agent.perPeriod)} per ${cfg.agent.periodDays === 1 ? "day" : cfg.agent.periodDays + " days"}.` : ""} Nothing here is on-chain.` },
     ],
   };
 }
@@ -96,10 +128,10 @@ const push = (s: SimState, f: Omit<FeedItem, "id" | "t"> & { t?: number }) => {
   if (s.feed.length > 80) s.feed.length = 80;
 };
 
-const audLabel: Record<Audience, string> = { owner: "owner", guardians: "guardians", beneficiary: "beneficiary" };
+const audLabel: Record<Audience, string> = { owner: "owner", guardians: "guardians", beneficiary: "beneficiary", successor: "successor" };
 
 function emitAgent(s: SimState, a: Action, p: SwitchProfile) {
-  const who = a.audience === "owner" ? p.owner.name : a.audience === "beneficiary" ? p.beneficiary.name : `${p.guardians.length} guardians`;
+  const who = a.audience === "owner" ? p.owner.name : a.audience === "beneficiary" ? p.beneficiary.name : a.audience === "successor" ? (p.successor?.name ?? "successor") : `${p.guardians.length} guardians`;
   push(s, {
     kind: "agent",
     title: `Telegram (sim) → ${who}`,
@@ -114,7 +146,7 @@ function emitAgent(s: SimState, a: Action, p: SwitchProfile) {
 function agentTick(s: SimState) {
   const p = profileOf(s.cfg);
   const sent = new Set(s.sent);
-  const plan = decide(p, s.snap, s.now, sent);
+  const plan = decide(p, s.snap, s.now, sent, undefined, s.events);
   for (const k of plan.skip) sent.add(k);
   for (const a of plan.send) {
     emitAgent(s, a, p);
@@ -166,20 +198,25 @@ export function ownerCheckIn(state: SimState): SimState {
   const s = clone(state);
   if (s.snap.released || s.snap.closed) return s;
   const prev = s.snap.epoch;
+  const wasFrozen = M.isFrozen(M.agentState(s.snap, s.now)) && !s.snap.agent?.ownerFrozen;
   const { cancelled } = M.checkIn(s.snap, s.now);
   push(s, { kind: "you", title: `${s.cfg.ownerName} checks in`, body: cancelled ? "Release cancelled: all guardian votes wiped." : `Timer reset to ${s.cfg.intervalDays} days.` });
   if (cancelled) push(s, { kind: "chain", title: "ReleaseCancelled", body: "On-chain event: epoch bumped, votes void." });
+  if (wasFrozen && s.snap.agent) push(s, { kind: "chain", title: `AgentUnfrozen · ${s.snap.agent.name}`, body: "Owner is alive again, so the agent works inside its limits." });
   allClear(s, prev);
+  agentTick(s);
   return s;
 }
 
-export function guardianApprove(state: SimState, gid: string): SimState {
+/** Vote for an outcome. Without an AI agent the only outcome is "release". */
+export function guardianApprove(state: SimState, gid: string, outcome: M.Outcome = "release"): SimState {
   const s = clone(state);
   const g = s.cfg.guardians.find((x) => x.id === gid);
   if (!g) return s;
   try {
-    const r = M.approve(s.snap, s.now, gid);
-    push(s, { kind: "chain", title: `GuardianApproved · ${g.name}`, body: `${s.snap.approvedBy.length} of ${s.snap.threshold} approvals.` });
+    const r = M.approve(s.snap, s.now, gid, outcome);
+    const what = s.snap.agent || s.cfg.agent ? (outcome === "handover" ? ` · hand over to ${s.cfg.agent?.successorName}` : ` · shut down & return to ${s.cfg.beneficiaryName}`) : "";
+    push(s, { kind: "chain", title: `GuardianApproved · ${g.name}${what}`, body: `${s.snap.approvedBy.length} of ${s.snap.threshold} approvals.` });
     if (r.challengeStarted) push(s, { kind: "chain", title: "ChallengeStarted", body: `Owner can still cancel until ${fmtDate(s.snap.challengeEnd!)}.` });
   } catch (e) {
     push(s, { kind: "chain", title: `Revert · ${g.name}`, body: explainRevert((e as Error).message) });
@@ -190,11 +227,96 @@ export function guardianApprove(state: SimState, gid: string): SimState {
 
 export function executeRelease(state: SimState): SimState {
   const s = clone(state);
+  const handover = s.snap.pendingOutcome === "handover";
+  const agentName = s.snap.agent?.name;
   try {
     M.execute(s.snap, s.now);
-    push(s, { kind: "chain", title: "Released", body: `${s.vaultStable.toLocaleString()} USD-stablecoin (simulated) sent to ${s.cfg.beneficiaryName}.` });
+    if (handover) {
+      push(s, { kind: "chain", title: "HandedOver", body: `Vault + ${s.vaultStable.toLocaleString()} USD-stablecoin (simulated) now belong to ${s.snap.handover?.toName}.${agentName ? ` ${agentName}'s permissions were removed.` : ""} Guardians never chose the destination: ${s.cfg.ownerName} did.` });
+    } else {
+      push(s, { kind: "chain", title: s.cfg.agent ? "Released · agent shut down" : "Released", body: `${s.vaultStable.toLocaleString()} USD-stablecoin (simulated) sent to ${s.cfg.beneficiaryName}.${agentName ? ` ${agentName} can no longer spend.` : ""}` });
+    }
   } catch (e) {
     push(s, { kind: "chain", title: "Revert", body: explainRevert((e as Error).message) });
+  }
+  agentTick(s);
+  return s;
+}
+
+// ───────────────────────────── the managed AI agent (mock adapter) ─────────────────────────────
+
+export interface AgentView {
+  name: string;
+  state: M.AgentState;
+  asset: string;
+  perTx: number;
+  perPeriod: number;
+  remaining: number;
+  spent: number;
+  resetsAt: number | null;
+  /** last moment it may still spend if the owner stays silent */
+  cutoff: number;
+  recipients: string[];
+}
+export function agentView(s: SimState): AgentView | null {
+  const a = s.snap.agent;
+  if (!a || !a.limits[0]) return null;
+  const l = a.limits[0];
+  const al = M.agentAllowance(s.snap, s.now, l.asset)!;
+  return {
+    name: a.name, state: M.agentState(s.snap, s.now), asset: l.asset, perTx: al.perTx, perPeriod: al.perPeriod,
+    remaining: Math.max(al.remaining, 0), spent: al.spent, resetsAt: al.resetsAt, cutoff: M.agentCutoff(s.snap), recipients: a.recipients,
+  };
+}
+export const handedOver = (s: SimState) => !!s.snap.handover;
+
+/** The simulated AI tries to pay. The (mirrored) contract rules decide; the monitoring agent then tells the owner. */
+export function agentPay(state: SimState, to: string, amount: number): SimState {
+  const s = clone(state);
+  const a = s.snap.agent;
+  if (!a || !s.cfg.agent) return s;
+  const asset = s.cfg.agent.asset;
+  const id = s.events.length + 1;
+  try {
+    M.agentSpend(s.snap, s.now, asset, to, amount);
+    s.events.push({ id, at: s.now, kind: "spend", asset, to, amount });
+    s.vaultStable = Math.max(0, s.vaultStable - amount);
+    push(s, { kind: "chain", title: `AgentSpent · ${fmtAmount(asset, amount)} → ${safeLabel(to)}`, body: `${a.name} paid inside its limits.` });
+  } catch (e) {
+    const reason = M.blockReasonOf(e);
+    if (!reason) {
+      push(s, { kind: "chain", title: `Revert · ${a.name}`, body: explainRevert((e as Error).message) });
+      return s;
+    }
+    s.events.push({ id, at: s.now, kind: "blocked", asset, to, amount, reason });
+    push(s, { kind: "chain", title: `Revert · ${a.name} blocked`, body: `${fmtAmount(asset, amount)} → ${safeLabel(to)}: ${explainRevert(e instanceof Error ? e.message : "")}` });
+  }
+  agentTick(s);
+  return s;
+}
+
+export function ownerFreeze(state: SimState, freeze: boolean): SimState {
+  const s = clone(state);
+  if (!s.snap.agent) return s;
+  try {
+    if (freeze) M.ownerFreezeAgent(s.snap, s.now); else M.ownerUnfreezeAgent(s.snap, s.now);
+    push(s, { kind: "you", title: `${s.cfg.ownerName} ${freeze ? "freezes" : "unfreezes"} ${s.snap.agent.name}`, body: freeze ? "Kill-switch: it cannot spend until you unfreeze it. Also counts as a check-in." : "It works inside the same limits again. Also counts as a check-in." });
+  } catch (e) {
+    push(s, { kind: "chain", title: "Revert", body: explainRevert((e as Error).message) });
+  }
+  agentTick(s);
+  return s;
+}
+
+export function guardianFreeze(state: SimState, gid: string): SimState {
+  const s = clone(state);
+  const g = s.cfg.guardians.find((x) => x.id === gid);
+  if (!g || !s.snap.agent) return s;
+  try {
+    M.guardianFreezeAgent(s.snap, s.now);
+    push(s, { kind: "chain", title: `AgentFrozen · by guardian ${g.name}`, body: "Only possible once the owner is late. Any owner action clears it." });
+  } catch (e) {
+    push(s, { kind: "chain", title: `Revert · ${g.name}`, body: explainRevert((e as Error).message) });
   }
   agentTick(s);
   return s;
@@ -221,6 +343,15 @@ export function explainRevert(m: string): string {
       ChallengeRunning: "Threshold already reached; the challenge window is running.",
       ChallengeNotOver: "The challenge window is still open: the owner can still cancel.",
       Finished: "The vault is already released/closed.",
+      AgentIsFrozen: "The agent is frozen. It cannot spend until the owner is back and unfreezes it.",
+      OverPerTxLimit: "Above the per-payment limit the owner set.",
+      OverPeriodLimit: "Would exceed the spending budget for this period.",
+      RecipientNotAllowed: "That recipient is not on the owner's allowed list.",
+      AssetNotAllowed: "That asset is not allowed for the agent.",
+      NotAgent: "There is no agent authorised on this vault.",
+      NoAgent: "There is no agent on this vault.",
+      NothingToDo: "Nothing to change: already in that state.",
+      NoSuccessor: "No successor was named by the owner, so a handover is not possible.",
       BadParams: "Out of range.",
     } as Record<string, string>
   )[m] ?? m;
@@ -233,14 +364,51 @@ export interface Suggestion {
   hint: string;
   run: (s: SimState) => SimState;
   alt?: { label: string; run: (s: SimState) => SimState };
+  /** more branches of the story (e.g. "owner returns") */
+  alts?: { label: string; run: (s: SimState) => SimState }[];
+}
+
+/** Scripted AI activity for the demo: two normal payments and two attempts that the vault rules stop. */
+export function agentWorkday(state: SimState): SimState {
+  const a = state.cfg.agent;
+  if (!a) return state;
+  const [r1 = "Acme Cloud", r2 = r1] = a.recipients;
+  let s = agentPay(state, r1, Math.min(30, a.perTx));
+  s = advanceBy(s, 2 * HOUR);
+  s = agentPay(s, "Scam LLC", 25);              // not on the allowlist
+  s = agentPay(s, r2, a.perTx * 10);            // way over the per-payment limit
+  s = advanceBy(s, 2 * HOUR);
+  s = agentPay(s, r2, Math.min(40, a.perTx));
+  return advanceBy(s, 2 * HOUR);
 }
 
 export function nextSuggestion(s: SimState): Suggestion {
   const st = statusOf(s);
   const snap = s.snap;
   const owner = s.cfg.ownerName;
+  const ag = s.snap.agent;
+  const succ = s.cfg.agent?.successorName;
+  const voteFor = (x: SimState, outcome: M.Outcome) => {
+    let y = x;
+    for (const g of x.cfg.guardians) {
+      if (y.snap.challengeEnd !== null) break;
+      if (!y.snap.approvedBy.includes(g.id)) y = guardianApprove(y, g.id, outcome);
+    }
+    return y;
+  };
+  if (snap.handover && st === "active") {
+    return { label: "Restart simulation", hint: `The vault now belongs to ${snap.handover.toName} (simulated), with the same guardians watching. Start over.`, run: (x) => initSim(x.cfg) };
+  }
   switch (st) {
     case "active":
+      if (ag && s.events.length === 0) {
+        return {
+          label: `${ag.name} works for a day`,
+          hint: `Watch ${ag.name} pay a vendor, get stopped when it tries something outside the limits, and ${s.cfg.ownerName} get told about it.`,
+          run: agentWorkday,
+          alt: { label: `${owner} goes silent`, run: (x) => advanceTo(x, M.expiry(x.snap) + 2 * HOUR) },
+        };
+      }
       return {
         label: `${owner} goes silent`,
         hint: `Skip ahead to just past the deadline (${fmtDate(M.expiry(snap))}). Watch the nudges and reminders go out.`,
@@ -249,10 +417,21 @@ export function nextSuggestion(s: SimState): Suggestion {
     case "grace":
       return {
         label: "Grace period runs out",
-        hint: "Still no reply. Reminders get louder and guardians get a heads-up.",
+        hint: ag
+          ? `Still no reply. ${ag.name} may keep working until ${fmtDate(M.agentCutoff(snap))}, then it freezes by itself. Guardians have been warned.`
+          : "Still no reply. Reminders get louder and guardians get a heads-up.",
         run: (x) => advanceTo(x, M.graceEnd(x.snap) + HOUR),
       };
     case "awaiting_guardians":
+      if (ag && succ) {
+        return {
+          label: `Guardians hand over to ${succ}`,
+          hint: `Two guardians agree on one outcome. They can only use the destinations ${owner} named in advance.`,
+          run: (x) => voteFor(x, "handover"),
+          alt: { label: `Guardians shut down & return`, run: (x) => voteFor(x, "release") },
+          alts: [{ label: `${owner} returns & unfreezes`, run: ownerCheckIn }],
+        };
+      }
       return {
         label: `Guardians vote (${snap.approvedBy.length}/${snap.threshold})`,
         hint: "Voting is open. The threshold of guardians approves the release to the beneficiary the owner chose.",
@@ -274,8 +453,8 @@ export function nextSuggestion(s: SimState): Suggestion {
       };
     case "executable":
       return {
-        label: "Execute release",
-        hint: `Window closed. Anyone can now execute: funds go to ${s.cfg.beneficiaryName}.`,
+        label: snap.pendingOutcome === "handover" ? "Execute handover" : "Execute release",
+        hint: snap.pendingOutcome === "handover" ? `Window closed. Anyone can now execute: the vault goes to ${succ}.` : `Window closed. Anyone can now execute: funds go to ${s.cfg.beneficiaryName}.`,
         run: executeRelease,
         alt: { label: `${owner} returns & cancels`, run: ownerCheckIn },
       };
@@ -283,7 +462,7 @@ export function nextSuggestion(s: SimState): Suggestion {
       return { label: "Skip past vacation", hint: "Vacation mode: the deadline is moved out.", run: (x) => advanceTo(x, x.snap.pausedUntil + HOUR) };
     case "released":
     case "closed":
-      return { label: "Restart simulation", hint: "Funds were released (simulated). Start over.", run: (x) => initSim(x.cfg) };
+      return { label: "Restart simulation", hint: snap.handover ? `The vault now belongs to ${snap.handover.toName} (simulated). Start over.` : "Funds were released (simulated). Start over.", run: (x) => initSim(x.cfg) };
   }
 }
 
@@ -307,13 +486,13 @@ export function formatCountdown(ms: number): string {
   return `${h}h ${String(m).padStart(2, "0")}m`;
 }
 
-export const STORAGE_KEY = "heirloom-demo-v1";
+export const STORAGE_KEY = `${BRAND.slug}-demo-v3`;
 export function loadSim(): SimState | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const j = JSON.parse(raw) as SimState;
-    return j.v === 2 ? j : null;
+    return j.v === 3 ? j : null;
   } catch { return null; }
 }
 export function saveSim(s: SimState) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch { /* ignore */ } }

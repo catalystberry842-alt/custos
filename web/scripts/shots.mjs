@@ -8,7 +8,7 @@ const click = async (p, name) => { await p.getByRole("button", { name }).first()
 for (const [tag, vp, dpr, mobile] of [["mobile", { width: 390, height: 844 }, 2, true], ["desktop", { width: 1440, height: 900 }, 1, false]]) {
   const ctx = await b.newContext({ viewport: vp, deviceScaleFactor: dpr, isMobile: mobile, hasTouch: mobile });
   const p = await ctx.newPage();
-  const shot = (n, full = true) => p.screenshot({ path: `${out}/${tag}-${n}.png`, fullPage: full });
+  const shot = async (n, full = true) => { if (!full) await p.evaluate(() => window.scrollTo(0, 0)); return p.screenshot({ path: `${out}/${tag}-${n}.png`, fullPage: full }); };
 
   await p.goto(base + "/", { waitUntil: "networkidle" });
   await shot("01-landing", false);
@@ -16,44 +16,54 @@ for (const [tag, vp, dpr, mobile] of [["mobile", { width: 390, height: 844 }, 2,
 
   // wizard
   await p.goto(base + "/setup", { waitUntil: "networkidle" });
-  await shot("02-setup-guardians", false);
+  await shot("02-setup-agent", false);
+  await shot("02-setup-agent-full");
   await click(p, "Next");
-  await shot("03-setup-beneficiary", false);
+  await shot("03-setup-guardians", false);
   await click(p, "Next");
-  await shot("04-setup-timing", false);
+  await shot("04-setup-beneficiary", false);
   await click(p, "Next");
-  await shot("05-setup-review", false);
+  await shot("05-setup-timing", false);
+  await click(p, "Next");
+  await shot("06-setup-review", false);
   await click(p, "Start simulation");
   await p.waitForURL("**/dashboard");
   await p.waitForSelector("[data-testid=countdown]");
 
-  // demo story
-  await shot("06-dashboard-active", false);
-  await click(p, "goes silent");           // → overdue / grace
-  await shot("07-dashboard-grace", false);
-  await click(p, "Grace period runs out");  // → guardians alerted + vote open
-  await shot("08-dashboard-voting-open", false);
-  await click(p, "Guardians vote");         // → challenge window
-  await shot("09-dashboard-challenge", false);
-  await shot("09-dashboard-challenge-full");
-  await click(p, "returns & cancels");     // owner comes back
-  await shot("10-dashboard-cancelled", false);
-  // second run to final release
-  await click(p, "+30 d"); await click(p, "+30 d");
-  await click(p, "Guardians vote");
+  // story A: owner silent → agent frozen → guardians vote → handover to the successor
+  await shot("07-dashboard-active", false);
+  await click(p, "works for a day");          // agent pays, gets blocked, owner is told
+  await shot("08-dashboard-agent-activity", false);
+  await shot("08-dashboard-agent-activity-full");
+  await click(p, "goes silent");              // → overdue / grace (agent still inside allowance)
+  await shot("09-dashboard-grace", false);
+  await click(p, "Grace period runs out");    // → agent FROZEN, guardians alerted
+  await shot("10-dashboard-agent-frozen", false);
+  await shot("10-dashboard-agent-frozen-full");
+  await click(p, /^Guardians hand over/);     // → challenge window
+  await shot("11-dashboard-challenge", false);
   await click(p, "Let the window run out");
-  await shot("11-dashboard-executable", false);
-  await click(p, "Execute release");
-  await shot("12-dashboard-released", false);
-  await shot("12-dashboard-released-full");
+  await click(p, "Execute handover");
+  await shot("12-dashboard-handed-over", false);
+  await shot("12-dashboard-handed-over-full");
+
+  // story B: owner silent → agent frozen → owner returns and unfreezes
+  await click(p, "Reset");
+  await click(p, "works for a day");
+  await click(p, "goes silent");
+  await click(p, "Grace period runs out");
+  await click(p, "returns & unfreezes");
+  await p.evaluate(() => window.scrollTo(0, 0));
+  await shot("13-dashboard-owner-returned", false);
+
   // optional Real chain panel (Robinhood Chain testnet default; mainnet shows a real-funds warning)
   await p.getByText("Real chain · optional").click();
   await p.waitForSelector("[aria-label=Network]");
   await p.locator("[aria-label=Network]").scrollIntoViewIfNeeded();
-  await shot("13-realchain-testnet", false);
+  await shot("14-realchain-testnet", false);
   await p.getByRole("radio", { name: /Mainnet/ }).click();
   await p.waitForTimeout(200);
-  await shot("14-realchain-mainnet-warning", false);
+  await shot("15-realchain-mainnet-warning", false);
   await ctx.close();
 }
 await b.close();

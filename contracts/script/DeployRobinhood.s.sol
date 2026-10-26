@@ -3,6 +3,7 @@ pragma solidity ^0.8.26;
 
 import {Script, console} from "forge-std/Script.sol";
 import {HeirloomFactory} from "../src/HeirloomFactory.sol";
+import {Brand} from "../src/Brand.sol";
 
 /// Deploys ONLY the HeirloomFactory (no admin, no fees, no token) to Robinhood Chain.
 ///
@@ -30,6 +31,7 @@ contract DeployRobinhood is Script {
             revert MainnetNotConfirmed();
         }
 
+        console.log(string.concat(Brand.NAME, ": ", Brand.TAGLINE));
         console.log("chainid:", id);
         console.log(id == MAINNET ? "target: Robinhood Chain MAINNET" : id == TESTNET ? "target: Robinhood Chain TESTNET" : "target: local dev chain");
 

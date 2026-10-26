@@ -196,3 +196,87 @@ contract ReentrantOwner {
         }
     }
 }
+
+/// Token whose transfer calls an arbitrary hook (to model a hostile token trying to re-enter via the agent or anyone).
+contract CallbackToken is MockERC20 {
+    address public hook;
+    bytes public data;
+
+    function setHook(address h, bytes calldata d) external {
+        hook = h;
+        data = d;
+    }
+
+    function transfer(address to, uint256 a) external override returns (bool) {
+        balanceOf[msg.sender] -= a;
+        balanceOf[to] += a;
+        if (hook != address(0)) {
+            (bool ok,) = hook.call(data);
+            ok; // swallow: the point is that the nested call cannot succeed
+        }
+        return true;
+    }
+}
+
+/// Smart-contract agent (e.g. an AI's 4337 account). `reenter` is called by hostile tokens/recipients.
+contract AgentContract {
+    Heirloom public vault;
+    uint256 public reenterOk;
+    uint256 public reenterTried;
+    address public asset;
+    address public to;
+    uint256 public amt;
+
+    constructor(Heirloom v) {
+        vault = v;
+    }
+
+    function go(address asset_, address to_, uint256 amt_) external {
+        asset = asset_;
+        to = to_;
+        amt = amt_;
+        vault.agentSpend(asset_, to_, amt_);
+    }
+
+    function reenter() external {
+        reenterTried++;
+        try vault.agentSpend(asset, to, amt) {
+            reenterOk++;
+        } catch {}
+    }
+}
+
+/// Allowlisted recipient that tries everything when paid.
+contract HostileRecipient {
+    Heirloom public vault;
+    uint256 public attempts;
+    uint256 public succeeded;
+    address public agentContract;
+
+    function setVault(Heirloom v, address a) external {
+        vault = v;
+        agentContract = a;
+    }
+
+    receive() external payable {
+        attempts++;
+        try vault.agentSpend(address(0), address(this), 1) {
+            succeeded++;
+        } catch {}
+        try vault.executeRelease() {
+            succeeded++;
+        } catch {}
+        try vault.approveOutcome(Heirloom.Outcome.Handover) {
+            succeeded++;
+        } catch {}
+        try vault.guardianFreezeAgent() {
+            succeeded++;
+        } catch {}
+        try vault.checkIn() {
+            succeeded++;
+        } catch {}
+        if (agentContract != address(0)) {
+            try AgentContract(agentContract).reenter() {} catch {}
+        }
+    }
+}

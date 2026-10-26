@@ -130,3 +130,5 @@ details.opt > summary::-webkit-details-marker { display: none; }
   .grid2 { grid-template-columns: 1fr 1fr; }
   .steps.four { grid-template-columns: repeat(4, 1fr); }
 }
+
+.card.frozen { border-color: var(--accent); background: linear-gradient(180deg, rgba(245,185,66,.07), var(--panel) 60%); }

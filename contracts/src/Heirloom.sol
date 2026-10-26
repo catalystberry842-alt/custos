@@ -3,18 +3,30 @@ pragma solidity ^0.8.26;
 
 import {IERC20Min} from "./interfaces/IERC20Min.sol";
 
-/// @title Heirloom — non-custodial crypto dead-man's switch (one vault per owner)
+/// @title Heirloom — non-custodial dead-man's switch for AI agents and their owners (one vault per owner)
 /// @notice Owner deposits the native gas asset (ETH on Robinhood Chain) + whitelisted ERC-20s (e.g. stablecoins). While the owner keeps checking in, nothing
 ///         can happen. If the owner goes silent for `interval + grace`, N-of-M guardians may
 ///         approve a release; after a `challengeWindow` (owner can cancel by acting) anyone can
 ///         execute it and every asset goes to the beneficiary the owner chose. Guardians can
 ///         never pick the destination, withdraw, or change config.
+///
+///         AGENT LAYER: the owner may authorise ONE `agent` (an AI's operator/session key) that can spend
+///         from the vault ONLY within owner-set limits (per-tx cap, per-period cap, allowlisted assets and
+///         recipients) and ONLY while the owner is alive. The agent is frozen automatically once the owner's
+///         proof of life lapses (interval + an owner-set late allowance ≤ grace), can be frozen by any
+///         guardian once the owner is late, and by the owner at any time. Owner activity unfreezes a
+///         guardian/lapse freeze. On guardian threshold approval the vault either returns everything to the
+///         beneficiary (Outcome.Release, agent shut down for good) or hands ownership + the funds to the
+///         owner-named `successor` (Outcome.Handover; the agent is revoked and the successor must
+///         re-authorise one). Guardians can never choose a destination: both are fixed by the owner beforehand.
+///         The agent can never call any owner/guardian function and its spending is NOT proof of life.
 /// @dev    Design notes:
 ///         - Oracle-free: only `block.timestamp`. NEVER `block.number`: on Arbitrum-Orbit chains such as
 ///           Robinhood Chain it is an L1 block-number estimate that updates only periodically, and
 ///           `block.prevrandao`/`difficulty` are constants. Neither is read anywhere (guarded by
 ///           test/RobinhoodChain.t.sol, which also greps this file).
-///         - Not upgradeable, no admin, no external dependencies.
+///         - Not upgradeable, no admin, no external dependencies. `owner` changes only through a guardian-approved
+///           Handover to the successor the owner named in advance.
 ///         - Every owner action ("proof of life") bumps `epoch`, voiding votes and challenges.
 ///         - UNAUDITED. Do not hold real value before an audit.
 contract Heirloom {
@@ -28,6 +40,27 @@ contract Heirloom {
         Paused, // vacation mode
         Released, // terminal: funds sent to beneficiary
         Closed // terminal: owner closed the vault
+    }
+
+    /// @dev What the guardians vote for. Release = funds to the beneficiary (agent shut down for good);
+    ///      Handover = ownership + funds to the pre-named successor (agent revoked, successor re-authorises).
+    enum Outcome {
+        Release,
+        Handover
+    }
+
+    enum AgentState {
+        None, // no agent authorised
+        Active, // agent may spend within limits
+        FrozenByOwner, // owner pressed the kill-switch
+        FrozenByGuardian, // a guardian froze it while the owner was late (cleared by any owner activity)
+        FrozenLapsed, // owner's proof of life lapsed past interval + late allowance (cleared by owner activity)
+        Stopped // vault released / closed
+    }
+
+    struct AssetLimit {
+        uint128 perTx;
+        uint128 perPeriod;
     }
 
     struct Params {
@@ -52,12 +85,16 @@ contract Heirloom {
     uint64 public constant MAX_PAUSE = 90 days;
     uint256 public constant MAX_GUARDIANS = 10;
     uint256 public constant MAX_TOKENS = 32;
+    uint64 public constant MIN_AGENT_PERIOD = 1 hours;
+    uint64 public constant MAX_AGENT_PERIOD = 365 days;
+    uint256 public constant MAX_AGENT_ASSETS = 8;
+    uint256 public constant MAX_RECIPIENTS = 32;
     /// @dev Gas cap for each outgoing token/native transfer during release so one hostile
     ///      recipient/token cannot block the rest. Leftovers are recoverable via sweep*.
     uint256 public constant TRANSFER_GAS = 300_000;
 
     // ─────────────────────────── storage ────────────────────────────
-    address public immutable owner;
+    address public owner; // changes only via guardian-approved Handover to `successor`
     address public beneficiary;
     address public payout; // set on Released (beneficiary) / Closed (owner)
 
@@ -82,6 +119,23 @@ contract Heirloom {
 
     address[] private _tokens;
     mapping(address => bool) public isToken;
+
+    // agent layer
+    address public agent;
+    uint64 public agentPeriod; // length of the rolling spend window
+    uint64 public agentLateAllowance; // how long past `expiry()` the agent may keep spending (clamped to `grace`)
+    bool public agentOwnerFrozen;
+    uint256 public agentGuardianFrozenEpoch; // == epoch ⇒ frozen by a guardian; any owner action bumps epoch
+    address public successor;
+    Outcome public pendingOutcome;
+    mapping(address => AssetLimit) public assetLimit; // address(0) = native ETH; perTx == 0 ⇒ not allowed
+    mapping(address => uint64) public periodStart;
+    mapping(address => uint128) public periodSpent;
+    address[] private _agentAssets;
+    mapping(address => bool) public isRecipient;
+    address[] private _recipients;
+    mapping(uint256 => mapping(uint8 => uint8)) private _outcomeVotes; // epoch => outcome => votes
+    mapping(address => uint8) public votedOutcome; // valid while approvedEpoch[g] == epoch
 
     uint256 private _lock = 1;
 
@@ -109,6 +163,17 @@ contract Heirloom {
     event TransferFailed(address indexed token, address indexed to, uint256 amount); // token==0 → native
     event Forwarded(address indexed token, address indexed to, uint256 amount);
     event PayoutRedirected(address indexed oldPayout, address indexed newPayout);
+    event AgentSet(address indexed agent, uint64 period, uint64 lateAllowance);
+    event AgentRevoked(address indexed agent);
+    event AssetLimitSet(address indexed asset, uint128 perTx, uint128 perPeriod);
+    event AssetLimitRemoved(address indexed asset);
+    event RecipientSet(address indexed to, bool allowed);
+    event AgentSpent(address indexed agent, address indexed asset, address indexed to, uint256 amount, uint256 periodSpent, uint256 periodCap);
+    event AgentFrozen(address indexed by, uint8 kind); // kind: 0 owner, 1 guardian
+    event AgentUnfrozen();
+    event SuccessorSet(address indexed successor);
+    event OutcomeVoted(address indexed guardian, Outcome outcome);
+    event HandedOver(address indexed oldOwner, address indexed newOwner);
 
     // ───────────────────────────── errors ────────────────────────────
     error NotOwner();
@@ -133,6 +198,17 @@ contract Heirloom {
     error TooManyTokens();
     error TransferFailedErr();
     error NothingToDo();
+    error NotAgent();
+    error AgentIsFrozen();
+    error NoAgent();
+    error AssetNotAllowed();
+    error RecipientNotAllowed();
+    error OverPerTxLimit();
+    error OverPeriodLimit();
+    error RoleConflict();
+    error NoSuccessor();
+    error AssetHasLimit();
+    error TooMany();
 
     // ─────────────────────────── modifiers ───────────────────────────
     modifier onlyOwner() {
@@ -232,6 +308,7 @@ contract Heirloom {
     function replaceGuardian(address oldG, address newG) external onlyOwner live {
         if (!isGuardian[oldG]) revert NotAGuardian();
         if (newG == address(0) || newG == owner) revert ZeroAddress();
+        if (newG == agent || newG == successor) revert RoleConflict();
         if (isGuardian[newG]) revert AlreadyGuardian();
         uint256 n = _guardians.length;
         for (uint256 i; i < n; ++i) {
@@ -256,6 +333,7 @@ contract Heirloom {
     /// @notice Delist (does not move funds). Withdraw first; leftovers are only recoverable after release/close.
     function removeToken(address token) external onlyOwner live {
         if (!isToken[token]) revert TokenNotListed();
+        if (assetLimit[token].perTx != 0) revert AssetHasLimit();
         uint256 n = _tokens.length;
         for (uint256 i; i < n; ++i) {
             if (_tokens[i] == token) {
@@ -301,23 +379,185 @@ contract Heirloom {
         _forwardAll(owner);
     }
 
+    // ──────────────────────── owner: AI agent ────────────────────────
+    // Every owner action is proof of life (calls _touch()). The agent's own actions are NOT.
+
+    /// @notice Authorise (or replace) the single agent key. Keeps limits/allowlist, resets spend counters and the
+    ///         owner freeze. `lateAllowance_` = how long after the check-in deadline the agent may keep spending
+    ///         (0 = stops the moment the owner is late; effective value is clamped to `grace`).
+    function setAgent(address agent_, uint64 period_, uint64 lateAllowance_) external onlyOwner live {
+        if (agent_ != agent) _requireFreeRole(agent_); // re-submitting the current key (to change limits) is fine
+        else if (agent_ == address(0)) revert ZeroAddress();
+        if (isRecipient[agent_]) revert RoleConflict();
+        if (period_ < MIN_AGENT_PERIOD || period_ > MAX_AGENT_PERIOD || lateAllowance_ > MAX_GRACE) revert BadParams();
+        agent = agent_;
+        agentPeriod = period_;
+        agentLateAllowance = lateAllowance_;
+        agentOwnerFrozen = false;
+        _resetSpent();
+        _touch();
+        emit AgentSet(agent_, period_, lateAllowance_);
+    }
+
+    /// @notice Remove the agent AND clear every limit and recipient (safe default; re-granting is explicit).
+    function revokeAgent() external onlyOwner live {
+        address a = agent;
+        if (a == address(0)) revert NoAgent();
+        _clearAgent();
+        _touch();
+        emit AgentRevoked(a);
+    }
+
+    /// @notice Allow the agent to spend `asset` (address(0) = ETH): at most `perTx` per call, `perPeriod` per window.
+    function setAssetLimit(address asset, uint128 perTx, uint128 perPeriod) external onlyOwner live {
+        if (perTx == 0 || perPeriod < perTx) revert BadParams();
+        if (assetLimit[asset].perTx == 0) {
+            if (_agentAssets.length >= MAX_AGENT_ASSETS) revert TooMany();
+            _agentAssets.push(asset);
+        }
+        if (asset != address(0) && !isToken[asset]) _listToken(asset); // so release forwards any remainder
+        assetLimit[asset] = AssetLimit(perTx, perPeriod);
+        _touch();
+        emit AssetLimitSet(asset, perTx, perPeriod);
+    }
+
+    function removeAssetLimit(address asset) external onlyOwner live {
+        if (assetLimit[asset].perTx == 0) revert NothingToDo();
+        _dropAsset(asset);
+        _touch();
+        emit AssetLimitRemoved(asset);
+    }
+
+    /// @notice Add/remove an address the agent may pay. Empty allowlist = the agent cannot spend at all.
+    function setRecipient(address to, bool allowed) external onlyOwner live {
+        if (to == address(0) || to == address(this) || to == agent) revert RoleConflict();
+        if (isRecipient[to] == allowed) revert NothingToDo();
+        if (allowed) {
+            if (_recipients.length >= MAX_RECIPIENTS) revert TooMany();
+            isRecipient[to] = true;
+            _recipients.push(to);
+        } else {
+            isRecipient[to] = false;
+            uint256 n = _recipients.length;
+            for (uint256 i; i < n; ++i) {
+                if (_recipients[i] == to) {
+                    _recipients[i] = _recipients[n - 1];
+                    _recipients.pop();
+                    break;
+                }
+            }
+        }
+        _touch();
+        emit RecipientSet(to, allowed);
+    }
+
+    /// @notice Owner kill-switch: the agent cannot spend until `unfreezeAgent()` (survives owner check-ins).
+    function freezeAgent() external onlyOwner live {
+        if (agent == address(0)) revert NoAgent();
+        if (agentOwnerFrozen) revert NothingToDo();
+        agentOwnerFrozen = true;
+        _touch();
+        emit AgentFrozen(msg.sender, 0);
+    }
+
+    function unfreezeAgent() external onlyOwner live {
+        if (!agentOwnerFrozen) revert NothingToDo();
+        agentOwnerFrozen = false;
+        _touch();
+        emit AgentUnfrozen();
+    }
+
+    /// @notice Name who takes over (ownership + funds) if guardians approve a Handover. address(0) clears it.
+    function setSuccessor(address s_) external onlyOwner live {
+        if (s_ != address(0)) {
+            _requireFreeRole(s_);
+            if (isRecipient[s_]) revert RoleConflict();
+        }
+        successor = s_;
+        _touch();
+        emit SuccessorSet(s_);
+    }
+
+    // ──────────────────────────── the agent ───────────────────────────
+
+    /// @notice The ONLY thing the agent key can do. Pays `amount` of `asset` to an allowlisted `to`, within the
+    ///         per-tx and rolling per-period caps, while the agent is not frozen. Counters are updated BEFORE the
+    ///         external call; the call is gas-capped; any failure reverts the whole spend (nothing is consumed).
+    ///         Does NOT count as owner proof of life and cannot touch any configuration.
+    function agentSpend(address asset, address to, uint256 amount) external live nonReentrant {
+        if (msg.sender != agent || msg.sender == address(0)) revert NotAgent();
+        if (
+            agentOwnerFrozen || agentGuardianFrozenEpoch == epoch || challengeEnd != 0
+                || block.timestamp > agentCutoff()
+        ) revert AgentIsFrozen();
+        AssetLimit memory l = assetLimit[asset];
+        if (l.perTx == 0) revert AssetNotAllowed();
+        if (!isRecipient[to]) revert RecipientNotAllowed();
+        if (amount == 0 || amount > l.perTx) revert OverPerTxLimit();
+
+        uint64 start = periodStart[asset];
+        uint256 spent = periodSpent[asset];
+        if (start == 0 || block.timestamp >= uint256(start) + agentPeriod) {
+            start = uint64(block.timestamp);
+            spent = 0;
+        }
+        uint256 total = spent + amount;
+        if (total > l.perPeriod) revert OverPeriodLimit();
+        periodStart[asset] = start;
+        periodSpent[asset] = uint128(total);
+        emit AgentSpent(msg.sender, asset, to, amount, total, l.perPeriod);
+
+        if (asset == address(0)) {
+            (bool ok,) = to.call{value: amount, gas: TRANSFER_GAS}("");
+            if (!ok) revert TransferFailedErr();
+        } else if (!_boundedTransfer(asset, to, amount)) {
+            revert TransferFailedErr();
+        }
+    }
+
     // ────────────────────────── guardians ────────────────────────────
 
-    /// @notice Guardian votes to release. Only after interval + grace has elapsed with no owner
-    ///         activity. When approvals reach the threshold the challenge window begins.
+    /// @notice Guardian votes to RELEASE everything to the beneficiary (agent shut down for good). Only after
+    ///         interval + grace has elapsed with no owner activity. When approvals for one outcome reach the
+    ///         threshold the challenge window begins.
     function approveRelease() external onlyGuardian live {
+        _approve(Outcome.Release);
+    }
+
+    /// @notice Guardian votes for an outcome: Release (beneficiary) or Handover (owner-named successor).
+    ///         N guardians must agree on the SAME outcome. Handover needs a successor to be set.
+    function approveOutcome(Outcome o) external onlyGuardian live {
+        _approve(o);
+    }
+
+    function _approve(Outcome o) internal {
         if (block.timestamp <= graceEnd()) revert NotYetExpired(); // covers paused too (anchor moves)
         if (challengeEnd != 0) revert ChallengeRunning();
         if (approvedEpoch[msg.sender] == epoch) revert AlreadyApproved();
+        if (o == Outcome.Handover && successor == address(0)) revert NoSuccessor();
         approvedEpoch[msg.sender] = epoch;
+        votedOutcome[msg.sender] = uint8(o);
         unchecked {
             ++approvalCount;
         }
+        uint8 votes = ++_outcomeVotes[epoch][uint8(o)];
         emit GuardianApproved(msg.sender, approvalCount, threshold, epoch);
-        if (approvalCount >= threshold) {
+        emit OutcomeVoted(msg.sender, o);
+        if (votes >= threshold) {
             challengeEnd = uint64(block.timestamp) + challengeWindow;
+            pendingOutcome = o;
             emit ChallengeStarted(challengeEnd, epoch);
         }
+    }
+
+    /// @notice Any single guardian may freeze the agent once the owner is LATE (past the check-in deadline).
+    ///         Cleared automatically by any owner activity. Cannot be used while the owner is current or paused.
+    function guardianFreezeAgent() external onlyGuardian live {
+        if (agent == address(0)) revert NoAgent();
+        if (block.timestamp <= expiry()) revert NotYetExpired();
+        if (agentGuardianFrozenEpoch == epoch) revert NothingToDo();
+        agentGuardianFrozenEpoch = epoch;
+        emit AgentFrozen(msg.sender, 1);
     }
 
     /// @notice Retract a vote — only while the challenge has not started.
@@ -327,17 +567,20 @@ contract Heirloom {
         approvedEpoch[msg.sender] = 0;
         unchecked {
             --approvalCount;
+            --_outcomeVotes[epoch][votedOutcome[msg.sender]];
         }
         emit ApprovalWithdrawn(msg.sender, approvalCount);
     }
 
     // ──────────────────────────── release ────────────────────────────
 
-    /// @notice Anyone (keeper, heir, guardian) may execute once the challenge window is over.
+    /// @notice Anyone (keeper, heir, guardian) may execute the approved outcome once the challenge window is over:
+    ///         Release (all assets to the beneficiary) or Handover (ownership + funds to the successor).
     function executeRelease() external live nonReentrant {
         if (challengeEnd == 0) revert NotYetExpired();
         if (block.timestamp < challengeEnd) revert ChallengeNotOver();
-        _release(false);
+        if (pendingOutcome == Outcome.Handover) _handover();
+        else _release(false);
     }
 
     /// @notice Guardian-less fallback (if enabled): beneficiary claims `fallbackDelay` after grace ends.
@@ -401,6 +644,40 @@ contract Heirloom {
         return Status.AwaitingGuardians;
     }
 
+    /// @notice Last moment (inclusive) the agent may still spend: expiry + min(lateAllowance, grace).
+    function agentCutoff() public view returns (uint64) {
+        uint64 late = agentLateAllowance < grace ? agentLateAllowance : grace;
+        return expiry() + late;
+    }
+
+    function agentState() public view returns (AgentState) {
+        if (agent == address(0)) return AgentState.None;
+        if (released || closed) return AgentState.Stopped;
+        if (agentOwnerFrozen) return AgentState.FrozenByOwner;
+        if (agentGuardianFrozenEpoch == epoch) return AgentState.FrozenByGuardian;
+        if (challengeEnd != 0 || block.timestamp > agentCutoff()) return AgentState.FrozenLapsed;
+        return AgentState.Active;
+    }
+
+    /// @notice What the agent could still spend of `asset` right now (ignores frozen state; see agentState()).
+    function agentAllowance(address asset) external view returns (uint256 perTx, uint256 remainingInPeriod, uint256 periodResetsAt) {
+        AssetLimit memory l = assetLimit[asset];
+        perTx = l.perTx;
+        uint64 start = periodStart[asset];
+        if (l.perTx == 0) return (0, 0, 0);
+        if (start == 0 || block.timestamp >= uint256(start) + agentPeriod) return (perTx, l.perPeriod, 0);
+        remainingInPeriod = l.perPeriod - periodSpent[asset];
+        periodResetsAt = uint256(start) + agentPeriod;
+    }
+
+    function agentAssets() external view returns (address[] memory) {
+        return _agentAssets;
+    }
+
+    function recipients() external view returns (address[] memory) {
+        return _recipients;
+    }
+
     function guardians() external view returns (address[] memory) {
         return _guardians;
     }
@@ -427,8 +704,77 @@ contract Heirloom {
         }
         approvalCount = 0;
         challengeEnd = 0;
+        pendingOutcome = Outcome.Release;
         emit CheckedIn(owner, lastCheckIn, epoch);
         if (hadRelease) emit ReleaseCancelled(epoch);
+    }
+
+    /// @dev Ownership + funds stay in the vault; the NEW owner (named in advance by the old one) controls them.
+    ///      The agent is revoked and all its limits/allowlist cleared: the successor must re-authorise one.
+    function _handover() internal {
+        address old = owner;
+        address next = successor;
+        owner = next;
+        successor = address(0);
+        _clearAgent();
+        pausedUntil = 0;
+        pendingOutcome = Outcome.Release;
+        lastCheckIn = uint64(block.timestamp);
+        unchecked {
+            ++epoch;
+        }
+        approvalCount = 0;
+        challengeEnd = 0;
+        emit HandedOver(old, next);
+        emit CheckedIn(next, lastCheckIn, epoch);
+    }
+
+    function _requireFreeRole(address a) internal view {
+        if (a == address(0) || a == address(this)) revert ZeroAddress();
+        if (a == owner || a == beneficiary || a == agent || a == successor || isGuardian[a]) revert RoleConflict();
+    }
+
+    function _resetSpent() internal {
+        uint256 n = _agentAssets.length;
+        for (uint256 i; i < n; ++i) {
+            address a = _agentAssets[i];
+            periodStart[a] = 0;
+            periodSpent[a] = 0;
+        }
+    }
+
+    function _dropAsset(address asset) internal {
+        delete assetLimit[asset];
+        delete periodStart[asset];
+        delete periodSpent[asset];
+        uint256 n = _agentAssets.length;
+        for (uint256 i; i < n; ++i) {
+            if (_agentAssets[i] == asset) {
+                _agentAssets[i] = _agentAssets[n - 1];
+                _agentAssets.pop();
+                break;
+            }
+        }
+    }
+
+    function _clearAgent() internal {
+        agent = address(0);
+        agentPeriod = 0;
+        agentLateAllowance = 0;
+        agentOwnerFrozen = false;
+        uint256 n = _agentAssets.length;
+        for (uint256 i; i < n; ++i) {
+            address a = _agentAssets[i];
+            delete assetLimit[a];
+            delete periodStart[a];
+            delete periodSpent[a];
+        }
+        delete _agentAssets;
+        n = _recipients.length;
+        for (uint256 i; i < n; ++i) {
+            isRecipient[_recipients[i]] = false;
+        }
+        delete _recipients;
     }
 
     function _release(bool viaFallback) internal {
@@ -507,7 +853,7 @@ contract Heirloom {
     }
 
     function _setBeneficiary(address b) internal {
-        if (b == address(0) || b == owner || b == address(this)) revert BadParams();
+        if (b == address(0) || b == owner || b == address(this) || b == agent || b == successor) revert BadParams();
         beneficiary = b;
     }
 
@@ -535,6 +881,7 @@ contract Heirloom {
         for (uint256 i; i < n; ++i) {
             address a = g[i];
             if (a == address(0) || a == owner) revert ZeroAddress();
+            if (a == agent || a == successor) revert RoleConflict();
             if (isGuardian[a]) revert AlreadyGuardian();
             isGuardian[a] = true;
             _guardians.push(a);

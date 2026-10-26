@@ -239,12 +239,13 @@ contract RobinhoodChainTest is Test {
 
     // ───────────── size limits / account types ─────────────
 
-    /// 96 KB is the Robinhood limit (24 KB on Ethereum). We fit even Ethereum's limits, so the code is portable.
-    function test_contractSizes_fitEvenEthereumLimit() public {
+    /// 96 KB is the Robinhood limit (24 KB on Ethereum). We keep BOTH contracts under Ethereum's 24 KB so the code stays
+    /// portable and deployable with unmodified tooling (forge/anvil enforce 24 KB by default). Needs via_ir (see foundry.toml).
+    function test_contractSizes_fitRobinhoodLimits() public {
         HeirloomFactory f = new HeirloomFactory();
         assertLt(address(v).code.length, 24_576);
         assertLt(address(f).code.length, 24_576);
-        assertLt(type(Heirloom).creationCode.length, 49_152); // Ethereum initcode limit
+        assertLt(type(HeirloomFactory).creationCode.length, 49_152); // Ethereum initcode limit
         emit log_named_uint("Heirloom runtime bytes", address(v).code.length);
         emit log_named_uint("HeirloomFactory runtime bytes", address(f).code.length);
     }

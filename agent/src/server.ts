@@ -1,3 +1,4 @@
+import { BRAND } from "./brand.js";
 import { createServer, type Server } from "node:http";
 import type { Agent } from "./agent.js";
 
@@ -10,7 +11,7 @@ main{width:100%;max-width:360px}
 h1{font-size:18px;margin:0 0 6px}p{color:#9a9aa2;margin:0 0 14px;font-size:14px}
 button{background:#f5b942;color:#1a1200;border:0;border-radius:8px;padding:10px 16px;font:600 14px inherit;cursor:pointer}
 small{display:block;margin-top:14px;color:#6b6b73;font-size:12px}
-</style></head><body><main>${body}<small>Heirloom check-in · simulated mode if no chain is configured</small></main></body></html>`;
+</style></head><body><main>${body}<small>${BRAND.name} check-in · simulated mode if no chain is configured</small></main></body></html>`;
 
 export function createCheckInServer(agent: Agent): Server {
   return createServer(async (req, res) => {
@@ -27,7 +28,7 @@ export function createCheckInServer(agent: Agent): Server {
       // GET never mutates: link scanners / previews must not be able to check in for the owner.
       const v = await agent.verifyToken(token);
       if (!v) return send(410, page("Link expired", "<h1>Link expired</h1><p>This link is no longer valid. You may already have checked in.</p>"));
-      return send(200, page("Check in", `<h1>Hi ${esc(v.profile.owner.name)}, still here?</h1><p>One tap restarts your Heirloom timer.</p><form method="post"><button>I'm here ✓</button></form>`));
+      return send(200, page("Check in", `<h1>Hi ${esc(v.profile.owner.name)}, still here?</h1><p>One tap restarts your ${BRAND.name} timer.</p><form method="post"><button>I'm here ✓</button></form>`));
     }
     if (req.method === "POST") {
       const r = await agent.checkInViaToken(token);

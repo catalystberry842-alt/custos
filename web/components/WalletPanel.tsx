@@ -5,6 +5,7 @@
  * Loaded lazily, only if the user opens the panel.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { BRAND } from "@/lib/brand";
 import { createPublicClient, createWalletClient, custom, http, isAddress, type Address, type EIP1193Provider } from "viem";
 import { DEFAULT_NETWORK, NETWORKS, addChainParams, safeRpc, type RobinhoodNetwork } from "@/lib/robinhood";
 
@@ -65,7 +66,7 @@ export default function WalletPanel() {
       const rc = <N extends "status" | "lastCheckIn" | "interval" | "owner">(functionName: N) => pub.readContract({ address: v, abi: ABI, functionName });
       const [s, l, i, o] = await Promise.all([rc("status"), rc("lastCheckIn"), rc("interval"), rc("owner")]);
       setInfo({ status: STATUS[Number(s)] ?? "?", last: new Date(Number(l) * 1000).toLocaleString(), interval: `${Number(i) / 86400}d`, owner: o as Address });
-    } catch { setInfo(null); setErr(`Couldn't read that address on ${chain.name}. Is it an Heirloom vault?`); }
+    } catch { setInfo(null); setErr(`Couldn't read that address on ${chain.name}. Is it a ${BRAND.name} vault?`); }
   }, [v, pub, chain.name]);
   useEffect(() => { void load(); }, [load]);
 
@@ -93,7 +94,7 @@ export default function WalletPanel() {
           ))}
         </div>
       </div>
-      {net === "mainnet" && <p className="s accent">Mainnet uses real funds. Heirloom is unaudited and this project has not deployed it. Prefer testnet.</p>}
+      {net === "mainnet" && <p className="s accent">Mainnet uses real funds. {BRAND.name} is unaudited and this project has not deployed it. Prefer testnet.</p>}
       {!acct ? (
         <div className="row"><button className="btn sm" onClick={connect}>Connect browser wallet</button><span className="s dim">{chain.name} · chain {chain.id} · injected wallets only</span></div>
       ) : (

@@ -1,10 +1,10 @@
 # Heirloom contracts
 
-Foundry project (solc 0.8.26, EVM `cancun`, optimizer 200). Designed for Robinhood Chain (Arbitrum Orbit L2). **Unaudited, never deployed.**
+Foundry project (solc 0.8.26, EVM `cancun`, optimizer 200, `via_ir` so the factory fits under 24 KB). Designed for Robinhood Chain (Arbitrum Orbit L2). **Unaudited, never deployed.**
 
 ```bash
 forge build
-forge test                         # 80 tests: unit, scenario, fuzz, reentrancy, hostile tokens, Robinhood-chain timing
+forge test                         # 158 tests: unit, scenario, fuzz, reentrancy, hostile tokens, AI-agent layer, Robinhood-chain timing
 forge coverage --report summary
 ```
 
@@ -15,3 +15,8 @@ forge coverage --report summary
   The signer comes only from the forge CLI (`--account <keystore>` / `--ledger`); no key is read from env or files. Omit `--broadcast` to simulate.
 * `foundry.toml` has `robinhood_testnet` / `robinhood_mainnet` RPC endpoints and Blockscout explorer entries (no keys).
   Full steps, checklist and verification: [`../docs/DEPLOY-ROBINHOOD.md`](../docs/DEPLOY-ROBINHOOD.md).
+
+## AI-agent layer (in `Heirloom.sol`)
+`setAgent(agent, period, lateAllowance)`, `setAssetLimit(asset, perTx, perPeriod)`, `setRecipient(to, allowed)`, `setSuccessor`, `freezeAgent/unfreezeAgent`, `revokeAgent` (owner);
+`agentSpend(asset, to, amount)` (agent key only); `guardianFreezeAgent()` and `approveOutcome(Handover|Release)` (guardians); `executeRelease()` runs the winning outcome; views `agentState()`, `agentCutoff()`, `agentAllowance(asset)`.
+Tests: `test/HeirloomAgent.t.sol` (config, spend limits, freeze sources, compromised key, handover, reentrancy/hostile tokens, fuzz). Product name lives in `src/Brand.sol` (see `../docs/BRAND.md`).
