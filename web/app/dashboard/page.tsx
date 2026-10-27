@@ -258,15 +258,13 @@ export default function Dashboard() {
       </div>
 
       <div className="dock" aria-label="Fast-forward time">
-        <div className="glass">
-          <div className="row between wrapflex" style={{ gap: 8 }}>
-            <span className="badge sim"><i />Demo time · {short(s.now)} UTC</span>
-            <div className="row" style={{ gap: 6 }}>
-              {[["+1 h", HOUR], ["+1 d", DAY], ["+7 d", 7 * DAY], ["+30 d", 30 * DAY]].map(([l, ms]) => (
-                <button key={l as string} className="btn sm" onClick={() => apply((x) => advanceBy(x, ms as number))} disabled={over}>{l}</button>
-              ))}
-              <button className="btn sm ghost" onClick={() => apply((x) => initSim(x.cfg))}>Reset</button>
-            </div>
+        <div className="glass dock-in">
+          <span className="dock-t"><i /><span className="lg-only">Demo time · </span>{short(s.now)}<span className="lg-only"> UTC</span></span>
+          <div className="row" style={{ gap: 4 }}>
+            {[["+1 h", HOUR], ["+1 d", DAY], ["+7 d", 7 * DAY], ["+30 d", 30 * DAY]].map(([l, ms]) => (
+              <button key={l as string} className="btn sm" onClick={() => apply((x) => advanceBy(x, ms as number))} disabled={over}>{l}</button>
+            ))}
+            <button className="btn sm ghost" onClick={() => apply((x) => initSim(x.cfg))}>Reset</button>
           </div>
         </div>
       </div>

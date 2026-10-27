@@ -38,7 +38,12 @@ export default function HeroProduct() {
           </div>
           <div className="hp-meta">
             <div><span className="xs dim">Per payment</span><b>max $50</b></div>
-            <div><span className="xs dim">Pays only</span><b>Acme Cloud, Datafeed</b></div>
+            <div><span className="xs dim">Budget</span><b>$200 / day</b></div>
+            <div><span className="xs dim">Pays only</span><b>2 payees</b></div>
+          </div>
+          <div className="hp-spark">
+            <span className="xs dim">Spent this week</span>
+            <span className="hp-bars">{[22, 34, 18, 40, 28, 46, 30].map((h, i) => <i key={i} style={{ height: h }} className={i === 6 ? "on" : ""} />)}</span>
           </div>
           <div className="hp-guard">
             <span className="xs dim">Guardians</span>
@@ -48,12 +53,12 @@ export default function HeroProduct() {
         <div className="hp-feed">
           <span className="sect-t">Activity</span>
           <ul>
-            <li className="hp-l1"><i className="ok" /><div><b>Atlas paid Acme Cloud $30</b><span>Inside budget and on the allowed list</span></div></li>
-            <li className="hp-l2"><i className="bad" /><div><b>Refused: Scam LLC, $10</b><span>Not on the allowed list. Ada was told.</span></div></li>
-            <li className="hp-l3"><i /><div><b>Ada missed her check-in</b><span>Grace period started, guardians warned</span></div></li>
-            <li className="hp-l4"><i className="cold" /><div><b>Atlas is frozen</b><span>The contract refuses every payment</span></div></li>
-            <li className="hp-l5"><i className="ok" /><div><b>2 of 3 guardians chose Hand over</b><span>Bola and Chidi approved</span></div></li>
-            <li className="hp-l6"><i className="ok" /><div><b>Vault handed to Tunde</b><span>Atlas&apos;s access is revoked</span></div></li>
+            <li className="hp-l1"><i className="ok" /><div><b>Atlas paid Acme Cloud $30</b><span>Inside budget and on the allowed list</span></div><time>09:12</time></li>
+            <li className="hp-l2"><i className="bad" /><div><b>Refused: Scam LLC, $10</b><span>Not on the allowed list. Ada was told.</span></div><time>09:14</time></li>
+            <li className="hp-l3"><i /><div><b>Ada missed her check-in</b><span>Grace period started, guardians warned</span></div><time>25 Nov</time></li>
+            <li className="hp-l4"><i className="cold" /><div><b>Atlas is frozen</b><span>The contract refuses every payment</span></div><time>2 Dec</time></li>
+            <li className="hp-l5"><i className="ok" /><div><b>2 of 3 guardians chose Hand over</b><span>Bola and Chidi approved</span></div><time>3 Dec</time></li>
+            <li className="hp-l6"><i className="ok" /><div><b>Vault handed to Tunde</b><span>Atlas&apos;s access is revoked</span></div><time>3 Dec</time></li>
           </ul>
         </div>
       </div>
