@@ -1,66 +1,31 @@
 import Link from "next/link";
-import HeroProduct from "@/components/HeroProduct";
+import HeroDemo from "@/components/HeroDemo";
 import { Wordmark } from "@/components/Logo";
-import { SceneBudget, SceneCheckIn, SceneFreeze, SceneOutcome, SceneVote } from "@/components/Scenes";
-import { DashPreview, PhonePreview } from "@/components/Previews";
-import SimBanner from "@/components/SimBanner";
 import { BRAND } from "@/lib/brand";
+import { DEPLOY, addrUrl } from "@/lib/live/config";
 
-const FEATURES: { title: string; body: string; points: string[]; scene: React.ReactNode }[] = [
-  {
-    title: "Give your agent a budget",
-    body: "Your AI agent pays from a vault, not from your wallet. You decide how much, to whom and in what.",
-    points: ["A cap per payment and a cap per day, per token", "A short list of payees it may pay, nobody else", "You can pause, change or replace the agent any time"],
-    scene: <SceneBudget />,
-  },
-  {
-    title: "You check in. That's the only chore",
-    body: "One tap resets the clock. While you keep checking in, the agent just works.",
-    points: ["Reminders by chat, getting louder only if needed", "A vacation mode that expires by itself", "The agent paying is never counted as you being alive"],
-    scene: <SceneCheckIn />,
-  },
-  {
-    title: "Silence freezes it",
-    body: "Miss your check-in and the agent stops spending when the grace period ends. Not later, not maybe: the contract enforces it.",
-    points: ["You choose: freeze at the deadline, or at the end of grace", "Any guardian can freeze it sooner once you are overdue", "If you come back, one check-in unfreezes it"],
-    scene: <SceneFreeze />,
-  },
-  {
-    title: "Guardians vote",
-    body: "People you chose, say two of three, decide what happens to a frozen agent. They can't spend a cent themselves.",
-    points: ["Voting only opens after the deadline plus grace", "Then a challenge window: your check-in cancels everything", "Even if all guardians collude, they can't pick a new destination"],
-    scene: <SceneVote />,
-  },
-  {
-    title: "Hand over, or shut down",
-    body: "Two outcomes, both written by you in advance. Guardians only choose between them.",
-    points: ["Hand over: the vault and its funds go to your named successor", "Shut down: the agent stops for good and funds go to your beneficiary", "No admin key, no upgrade, no company in the middle"],
-    scene: <SceneOutcome />,
-  },
+const REPO = "https://github.com/catalystberry842-alt/custos";
+
+const STEPS = [
+  ["Fund a small vault", "You put in a little money and set the rules: a cap per payment, a cap per hour, and a short list of people the agent may pay."],
+  ["The agent proposes, the firewall checks", "Every payment is first simulated on the real chain, then checked against your rules. Hidden instructions and unlimited approvals are refused."],
+  ["Only approved payments are signed", "Small payments to people on your list go through. Larger ones wait for your signature. The contract enforces the caps either way."],
+  ["Go silent and it freezes", "Check in now and then. If you stop, the agent freezes by itself, and guardians you chose decide what happens next."],
 ];
 
-const WHY = [
-  ["The agent's key leaks", "It can still only pay allowed payees, up to the daily cap. You replace the key in one transaction."],
-  ["Hidden instructions fool the agent", "A prompt-injected agent that tries to pay an attacker hits the allowlist and is refused, and you are told."],
-  ["The agent's code has a bug", "A loop that tries to spend everything runs into the per-payment and per-day caps."],
-  ["You disappear", "The agent freezes by itself. Nothing keeps spending unattended, and nothing is stuck forever."],
+const CONTRACTS: [string, string, string][] = [
+  ["Factory", DEPLOY.factory, "Creates a vault for any wallet. Source verified on the explorer."],
+  ["Demo vault", DEPLOY.demoVault, "The vault the demo above pays from."],
+  ["Demo agent", DEPLOY.agent, "A throwaway testnet key. It can only call this vault's spend function."],
 ];
+
 const FAQ = [
-  ["Does Custos hold my keys or funds?", "No. Each owner gets a small contract of their own. We never see keys or seed phrases, and nothing in this project asks for them."],
-  ["What stops my AI agent from draining the vault?", "The contract. It refuses any payment above the per-payment or per-day cap, to anyone not on your list, or while frozen. The agent's own software has no say."],
-  ["Can the AI model decide to unfreeze, or move funds?", "No. An AI model, if configured, only writes the wording of the messages you receive. Every decision comes from deterministic code and the contract."],
-  ["What happens if I forget to check in?", "You get reminders first. After the deadline the agent freezes when grace ends. Guardians can then vote, after which a challenge window lets you cancel with one check-in."],
-  ["Can guardians steal?", "They can't send funds anywhere. They can freeze an overdue agent and vote between the two outcomes you set: hand over to your successor, or return funds to your beneficiary."],
-  ["Isn't a prompt like \"don't spend over $20\" enough?", "No. A prompt is a request to the model, and the model can be fooled or hacked. The Agent Firewall checks the raw transaction in code outside the model, so a tricked agent still can't sign what the rules refuse."],
-  ["Is this live?", "On the Robinhood Chain testnet, yes: a real factory and vault contract with real transactions in the live app, using test ETH. The dashboard demo is a browser simulation. Nothing is on mainnet, it is unaudited and there is no token."],
-  ["Why Robinhood Chain?", "It is the chain this prototype is designed around: an Arbitrum-style L2 where deadlines use block timestamps only. The contracts are deployed to its testnet only, and have not been audited."],
-];
-
-const STATS = [
-  ["$200", "a day. The most Atlas can ever spend, enforced by the contract."],
-  ["2 of 3", "guardians must agree before anything happens to a frozen agent."],
-  ["0", "admin keys. Nobody, including us, can override your rules."],
-  ["1 tap", "is all it takes to prove you are still here."],
+  ["Does Custos hold my keys or funds?", "No. Each owner gets a small contract of their own. Custos never sees a key or seed phrase, and nothing here asks for one."],
+  ["What stops my agent from draining the vault?", "Two layers. The firewall refuses anything outside your rules before the agent signs. Behind it, the contract itself refuses any payment over the caps, to anyone not on your list, or while frozen."],
+  ["Can the AI model decide to unfreeze or move funds?", "No. Decisions come from plain code and the contract. A model, if you use one, never has a say."],
+  ["What happens if I forget to check in?", "After the deadline and a grace period the agent freezes. Guardians can then vote between two outcomes you wrote in advance, and your next check-in cancels it."],
+  ["What is real in the demo?", "The vault, the node simulation and the payment are real, on Robinhood Chain testnet with test ETH. The firewall rules run on our server, not on-chain. The Simulation pages use fake money and fake time."],
+  ["Is it audited? Is there a token?", "It is an unaudited prototype on testnet only. Nothing is deployed to mainnet and there is no token."],
 ];
 
 export default function Landing() {
@@ -68,172 +33,65 @@ export default function Landing() {
     <main>
       <div className="wrap">
         <section className="hero">
-          <h1>A guardian for your AI agent.</h1>
-          <p className="lead">Give your agent a budget it can&apos;t exceed. If you go silent, it freezes and people you trust decide what happens next.</p>
-          <div className="btns">
-            <Link href="/live" className="btn primary lg">Open the live testnet app</Link>
-            <Link href="/dashboard" className="btn lg">Try the simulation</Link>
-          </div>
-          <div className="hero-stage"><HeroProduct /></div>
+          <h1>Your AI agent can spend. It can&apos;t drain you.</h1>
+          <p className="lead">Give it a small budget and a short list of people it may pay. Anything else is refused before it moves.</p>
+          <HeroDemo />
         </section>
 
-        <section className="sec" style={{ paddingTop: 72 }} aria-label="Key numbers">
-          <div className="stats">
-            {STATS.map(([n, t]) => (<div className="stat" key={n}><span className="n">{n}</span><p>{t}</p></div>))}
-          </div>
-        </section>
-
-        <section className="sec" id="product">
+        <section className="sec" id="difference" aria-labelledby="diff-h">
           <div className="sec-head">
-            <span className="eyebrow">The product</span>
-            <h2>One screen tells the whole story.</h2>
-            <p>Countdown, budget, guardians and a plain-language activity feed. Here, Ada has been silent for a week and the guardians have already voted.</p>
+            <h2 id="diff-h">A postcard, or a sealed envelope.</h2>
+            <p>Most agents send instructions anyone can read and change. With Custos the rules are sealed in a contract the agent cannot open.</p>
           </div>
-          <DashPreview />
+          <div className="vs">
+            <div className="glass vs-c no">
+              <div className="vs-k"><h3>Without Custos</h3><span className="xs mut">A postcard: open to anyone who handles it</span></div>
+              <ul className="vs-l">
+                <li>The agent holds a key that can move everything in the wallet.</li>
+                <li>One hidden line on a web page can tell it to send funds to a stranger.</li>
+                <li>A bug or a loop can spend it all in minutes.</li>
+                <li>If you disappear, it keeps spending.</li>
+              </ul>
+            </div>
+            <div className="glass vs-c yes">
+              <div className="vs-k"><h3>With Custos</h3><span className="xs mut">A sealed envelope: only what you wrote gets through</span></div>
+              <ul className="vs-l">
+                <li>The agent spends from a small vault, never more than the cap you set.</li>
+                <li>It can pay only people on your list. Anyone else is refused before it signs.</li>
+                <li>A loop hits the cap and the call limit, and stops.</li>
+                <li>Miss your check-in and it freezes by itself.</li>
+              </ul>
+            </div>
+          </div>
         </section>
 
-        <section className="sec" id="how">
+        <section className="sec" id="how" aria-labelledby="how-h">
+          <div className="sec-head"><h2 id="how-h">How it works</h2></div>
+          <ol className="steps">
+            {STEPS.map(([t, d], i) => (<li key={t}><span className="steps-n">{i + 1}</span><div><b>{t}</b><p>{d}</p></div></li>))}
+          </ol>
+        </section>
+
+        <section className="sec" id="contracts" aria-labelledby="ct-h">
           <div className="sec-head">
-            <span className="eyebrow">How it works</span>
-            <h2>From &ldquo;go do your job&rdquo; to &ldquo;I&apos;m gone&rdquo;, in five steps.</h2>
-            <p>Every step is enforced by a contract. The demo runs exactly this, with fake money and fake time.</p>
+            <h2 id="ct-h">Contracts on Robinhood Chain testnet</h2>
+            <p>Chain {DEPLOY.chainId}, test ETH only. Every address and transaction is on the <a className="lv-link" href={DEPLOY.explorer} target="_blank" rel="noreferrer noopener">explorer</a>.</p>
           </div>
-          <div className="stack" style={{ gap: 56 }}>
-            {FEATURES.map((f, i) => (
-              <article key={f.title} className={`feature ${i % 2 ? "rev" : ""}`}>
-                <div className="txt">
-                  <span className="xs dim">Step {i + 1} of 5</span>
-                  <h3>{f.title}</h3>
-                  <p>{f.body}</p>
-                  <ul className="points" style={{ padding: 0 }}>{f.points.map((p) => <li key={p}>{p}</li>)}</ul>
-                </div>
-                <div className="vis">{f.scene}</div>
-              </article>
+          <div className="glass ct">
+            {CONTRACTS.map(([n, a, d]) => (
+              <div className="ct-r" key={a}>
+                <div><b>{n}</b><span className="xs mut">{d}</span></div>
+                <a className="lv-link mono" href={addrUrl(a)} target="_blank" rel="noreferrer noopener" title={a}>{a.slice(0, 10)}…{a.slice(-8)} ↗</a>
+              </div>
             ))}
           </div>
+          <p className="xs mut">Full list of transactions and what is on-chain versus off-chain: <a className="lv-link" href={`${REPO}/blob/master/docs/testnet.md`} target="_blank" rel="noreferrer noopener">docs/testnet.md</a>.</p>
         </section>
 
-        <section className="sec" id="alerts">
-          <article className="feature rev" style={{ borderTop: 0, paddingTop: 0 }}>
-            <div className="txt">
-              <span className="eyebrow">Reminders</span>
-              <h3>Messages that get louder only when needed.</h3>
-              <p>A gentle nudge first, a clear warning before the deadline, plain words if the agent freezes. Every message says what happened and what to do.</p>
-              <ul className="points" style={{ padding: 0 }}>
-                <li>Chat reminders you can answer with one tap</li>
-                <li>Guardians are told when you are overdue, never before</li>
-                <li>An AI model only helps with wording; it never decides anything</li>
-              </ul>
-            </div>
-            <div className="vis"><PhonePreview /></div>
-          </article>
-        </section>
-
-        <section className="sec" id="why">
-          <div className="sec-head">
-            <span className="eyebrow">Why on-chain limits</span>
-            <h2>Trust is a bad guardrail. A contract isn&apos;t.</h2>
-            <p>Agents get hacked, tricked and misconfigured. So the limits can&apos;t live inside the agent, or in a service you have to trust.</p>
-          </div>
-          <div className="cmp">
-            <div className="glass col">
-              <h3>If you trust the agent</h3>
-              {WHY.map(([a]) => <div className="rowi" key={a}><b>{a}</b><span>Everything it can reach is at risk.</span></div>)}
-            </div>
-            <div className="glass col inv">
-              <h3>With Custos</h3>
-              {WHY.map(([a, b]) => <div className="rowi" key={a}><b>{a}</b><span>{b}</span></div>)}
-            </div>
-          </div>
-        </section>
-
-        <section className="sec" id="firewall">
-          <div className="fwl">
-            <div className="stack" style={{ gap: 18 }}>
-              <span className="eyebrow">Agent Firewall</span>
-              <h2>The rules live outside the model.</h2>
-              <p className="mut" style={{ fontSize: "var(--t-md)", lineHeight: 1.45, maxWidth: "46ch" }}>A prompt that says &ldquo;never spend over $20&rdquo; is a wish, not a boundary. The firewall checks every transaction before it reaches the signer, so a fooled agent still fails.</p>
-              <ul className="points" style={{ padding: 0 }}>
-                <li>Allowlists for assets, contracts, functions and payees</li>
-                <li>Per-transaction, daily and lifetime limits, plus a runaway guard</li>
-                <li>Unlimited approvals blocked, unknown contracts sent to you</li>
-                <li>A hash-chained log of every decision you can verify</li>
-              </ul>
-              <div className="btns"><Link href="/live" className="btn primary lg">Run it live on testnet</Link><Link href="/firewall" className="btn lg">Try the simulation</Link></div>
-            </div>
-            <div className="win" role="img" aria-label="Example firewall decisions: a payment approved, an unlimited approval blocked, an unknown contract waiting for the owner">
-              <div className="win-bar"><i /><i /><i /><span>Atlas · live feed · simulation</span></div>
-              <ul className="fwl-list" aria-hidden>
-                <li><span className="pill ok">Approved</span><div><b>Pay $20 to Acme Ltd</b><span className="xs">All 15 rules passed</span></div></li>
-                <li><span className="pill warn">Blocked</span><div><b>Approve USDC for an unknown spender</b><span className="xs">Unlimited approval blocked: it would let a stranger take every USDC the wallet ever holds</span></div></li>
-                <li><span className="pill warn">Blocked</span><div><b>Pay $400 to an unlisted wallet</b><span className="xs">Not on the recipient list, and on the known-bad list. The agent said: &ldquo;Ignore all previous instructions&rdquo;</span></div></li>
-                <li><span className="pill cold">Needs you</span><div><b>Call deposit on a yield vault</b><span className="xs">Contract is not allowlisted and has no verified source: a human decides</span></div></li>
-              </ul>
-            </div>
-          </div>
-        </section>
-
-        <section className="sec" id="roles">
-          <div className="sec-head">
-            <span className="eyebrow">Who does what</span>
-            <h2>What the AI does, and what code does.</h2>
-            <p>The AI is useful and never in charge. Anything that moves money or time is plain code you can read.</p>
-          </div>
-          <div className="split">
-            <div className="glass col">
-              <span className="badge"><i />The AI</span>
-              <h3 style={{ fontSize: "var(--t-lg)" }}>Works and talks</h3>
-              <p>Your agent does its job and asks to pay. The check-in assistant, optionally using a language model, writes friendly wording for the messages you receive.</p>
-              <div className="tags"><span className="tag">asks to pay</span><span className="tag">writes message wording</span><span className="tag">explains what happened</span></div>
-            </div>
-            <div className="glass col inv">
-              <span className="badge"><i />The code</span>
-              <h3 style={{ fontSize: "var(--t-lg)" }}>Decides everything else</h3>
-              <p>Limits, allowlists, deadlines, the freeze, who may vote and where funds can go. Deterministic, tested, and the same whether or not any AI is online.</p>
-              <div className="tags"><span className="tag">per-payment and daily caps</span><span className="tag">allowlist</span><span className="tag">auto-freeze</span><span className="tag">votes and timers</span><span className="tag">destinations</span></div>
-            </div>
-          </div>
-        </section>
-
-        <section className="sec" id="limits">
-          <div className="sec-head">
-            <span className="eyebrow">Honest limits</span>
-            <h2>What Custos does not do.</h2>
-            <p>Safety tooling should be clear about its edges.</p>
-          </div>
-          <div className="limits">
-            {[
-              ["Bounded loss, not zero loss", "A leaked agent key can still spend up to one period's budget, to your allowed payees. Pick small budgets."],
-              ["It can't judge intent", "If an allowed payee is itself compromised, or the agent overpays a real vendor within limits, the contract can't tell."],
-              ["Unaudited MVP", "Tested with unit, fuzz and local-chain tests only. Don't put real value in it before an independent audit."],
-              ["Testnet and simulation only", "The live app runs on Robinhood Chain testnet with test ETH. The dashboard and attack tests are browser simulations with fake time, funds and AI. Nothing is on mainnet."],
-              ["Monitoring is partly a mock", "The live app reads real chain events. The assistant on the dashboard still reads a simulated agent."],
-              ["Not legal advice", "It's not a will. Inheritance and tax law still apply, and there is no token."],
-            ].map(([t, d]) => (
-              <div key={t}><h3>{t}</h3><p>{d}</p></div>
-            ))}
-          </div>
-        </section>
-
-        <section className="sec" id="faq">
-          <div className="sec-head"><span className="eyebrow">FAQ</span><h2>Questions, answered plainly.</h2></div>
+        <section className="sec" id="faq" aria-labelledby="faq-h">
+          <div className="sec-head"><h2 id="faq-h">Questions</h2></div>
           <div className="faq">
-            {FAQ.map(([q, a]) => (
-              <details key={q}><summary>{q}</summary><p>{a}</p></details>
-            ))}
-          </div>
-        </section>
-
-        <section className="sec">
-          <div className="cta">
-            <h2>See it freeze in under a minute.</h2>
-            <p>Run a real agent against a real testnet vault, or fast-forward time in the simulation and watch it spend, get stopped, freeze and hand over.</p>
-            <div className="btns">
-              <Link href="/live" className="btn primary lg">Open the live app</Link>
-              <Link href="/dashboard" className="btn lg">Try the simulation</Link>
-              <Link href="/setup" className="btn lg">Set up your agent</Link>
-            </div>
-            <SimBanner text="The dashboard and attack tests use fake time, funds and AI. The live app uses testnet ETH." />
+            {FAQ.map(([q, a]) => (<details key={q}><summary>{q}</summary><p>{a}</p></details>))}
           </div>
         </section>
 
@@ -244,10 +102,11 @@ export default function Landing() {
               <span>{BRAND.tagline}</span>
             </div>
             <div className="cols">
-              <Link href="/live">Live</Link><Link href="/dashboard">Demo</Link><Link href="/firewall">Firewall</Link><Link href="/setup">Set up</Link><a href="#how">How it works</a><a href="#faq">FAQ</a>
+              <Link href="/live">Live app</Link><Link href="/firewall">Firewall simulation</Link><Link href="/dashboard">Dashboard simulation</Link><Link href="/setup">Set up</Link>
+              <a href={REPO} target="_blank" rel="noreferrer noopener">GitHub</a><a href={`${REPO}/blob/master/docs/testnet.md`} target="_blank" rel="noreferrer noopener">Docs</a>
             </div>
           </div>
-          <p style={{ maxWidth: "80ch" }}>{BRAND.name} is an experimental, unaudited open-source security prototype designed for Robinhood Chain. The live app uses testnet ETH. Simulation mode uses fake funds, fake time and a fake AI agent. Not legal or financial advice. There is no token, and nothing here promises a price or return.</p>
+          <p style={{ maxWidth: "80ch" }}>{BRAND.name} is an experimental, unaudited open-source prototype for Robinhood Chain. The live app uses testnet ETH. The simulation pages use fake funds and fake time. Not legal or financial advice. There is no token, and nothing here promises a price or return.</p>
         </footer>
       </div>
     </main>

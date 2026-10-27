@@ -8,10 +8,9 @@ export default function SiteHeader() {
       <div className="wrap">
         <Link href="/" aria-label="Custos home"><Wordmark /></Link>
         <nav className="nav" aria-label="Main">
-          <Link href="/live">Live</Link>
-          <Link href="/firewall">Firewall</Link>
-          <Link href="/setup">Set up</Link>
-          <Link href="/dashboard">Demo</Link>
+          <Link href="/live">Live app</Link>
+          <Link href="/firewall">Simulation</Link>
+          <Link href="/#how" className="hide-sm">How it works</Link>
           <ThemeToggle />
         </nav>
       </div>

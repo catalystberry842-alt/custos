@@ -44,4 +44,4 @@ export function deriveLiveState(s: VaultSnapshot, events: ChainEvent[]): LiveSta
   };
   return { policy, rt, nextNonce: count, spendCount: count };
 }
-export const liveThreat = (vault: string) => new ThreatChecker({ knownBad: { [ATTACKER]: "on the demo known-bad list" }, verified: { [vault.toLowerCase()]: true } });
+export const liveThreat = (vault: string) => new ThreatChecker({ knownBad: { [ATTACKER]: "flagged in the demo threat list" }, verified: { [vault.toLowerCase()]: true } });

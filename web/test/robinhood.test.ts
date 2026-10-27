@@ -34,7 +34,7 @@ describe("Robinhood Chain config (docs.robinhood.com/chain/connecting, checked 2
     expect(safeRpc("testnet")).toBe(robinhoodTestnet.rpcUrls.default.http[0]);
   });
   it("web app never converts block numbers to time and has no memecoin/price framing", () => {
-    for (const f of ["../components/WalletPanel.tsx", "../lib/robinhood.ts", "../lib/sim.ts"]) {
+    for (const f of ["../lib/robinhood.ts", "../lib/sim.ts"]) {
       const src = readFileSync(new URL(f, import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
       expect(src).not.toMatch(/blockNumber|getBlockNumber|block\.number/);
     }

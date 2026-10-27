@@ -1,7 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import "./visuals.css";
-import "./motion.css";
 import "./firewall.css";
 import "./live.css";
 import SiteHeader from "@/components/SiteHeader";

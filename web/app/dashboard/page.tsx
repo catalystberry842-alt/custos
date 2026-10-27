@@ -1,5 +1,4 @@
 "use client";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import Gauge from "@/components/Gauge";
@@ -15,7 +14,6 @@ import { BRAND } from "@/lib/brand";
 import type { AgentState } from "@/lib/agent/chainModel";
 import { anchor, expiry, graceEnd, type Status } from "@/lib/agent/chainModel";
 
-const WalletPanel = dynamic(() => import("@/components/WalletPanel"), { ssr: false, loading: () => <p className="xs dim">Loading wallet tools…</p> });
 
 const STATUS_LABEL: Record<Status, string> = {
   active: "Active", grace: "Overdue · grace", awaiting_guardians: "Guardians may vote", challenge: "Challenge window",
@@ -87,7 +85,6 @@ function Feed({ items }: { items: FeedItem[] }) {
 
 export default function Dashboard() {
   const [s, setS] = useState<SimState | null>(null);
-  const [wallet, setWallet] = useState(false);
   const [all, setAll] = useState(false);
 
   useEffect(() => { setS(loadSim() ?? initSim()); }, []);
@@ -246,12 +243,6 @@ export default function Dashboard() {
               {s.feed.length > 8 && <button className="btn sm ghost seeall" onClick={() => setAll(!all)}>{all ? "Show fewer" : `Show ${Math.min(40, s.feed.length) - 8} older`}</button>}
             </section>
 
-            <section className="glass pad-l" aria-label="Real chain (optional)">
-              <details className="opt" open={wallet} onToggle={(e) => setWallet((e.target as HTMLDetailsElement).open)}>
-                <summary className="row between" style={{ cursor: "pointer", listStyle: "none" }}><span className="sect-t">Real chain · optional</span><span className="xs dim">{wallet ? "hide" : "show"}</span></summary>
-                <div style={{ marginTop: 12 }}>{wallet && <WalletPanel />}</div>
-              </details>
-            </section>
             <p className="xs dim"><Link href="/setup" style={{ textDecoration: "underline" }}>Re-run setup</Link> · {BRAND.name} MVP · unaudited · simulation</p>
           </div>
         </div>

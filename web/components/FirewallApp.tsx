@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import SimBanner from "@/components/SimBanner";
 import ModeSwitch from "@/components/ModeSwitch";
 import { verifyChain, type AgentPolicy, type AuditEntry, type Verdict } from "@/lib/firewall";
 import { ADDR } from "@/lib/firewall";
@@ -110,19 +109,9 @@ export default function FirewallApp() {
 
       <div className="row between wrapflex" style={{ gap: 10 }}>
         <ModeSwitch mode="sim" />
-      </div>
-      <div className="row between wrapflex" style={{ gap: 10 }}>
-        <SimBanner text="Fake agent, fake funds, fake time. The simulator is a deterministic mock." />
-        <span className="xs dim">Simulated time {clock(d.t)} UTC</span>
+        <span className="xs dim">Fake agent, funds and time · simulated time {clock(d.t)} UTC</span>
       </div>
 
-      <div className="glass pad fw-flow" aria-label="How a request flows">
-        <div className="fw-node"><span className="xs dim">1 · Agent</span><b>Proposes anything</b><span className="xs mut">Even if it was jailbroken or fooled by a web page</span></div>
-        <i aria-hidden>→</i>
-        <div className="fw-node on"><span className="xs accent">2 · Firewall</span><b>Checks 15 rules</b><span className="xs mut">Allowlists, limits, simulation, threats, replay. Outside the model</span></div>
-        <i aria-hidden>→</i>
-        <div className="fw-node"><span className="xs dim">3 · Vault</span><b>Hard limits on-chain</b><span className="xs mut">Per-payment, per-period, payee list and a call quota in the contract</span></div>
-      </div>
 
       {frozen && (
         <div className="note" role="status" style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>

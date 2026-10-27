@@ -121,7 +121,7 @@ button, input { font: inherit; color: inherit; }
 .badge i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .badge.sig { color: var(--text); } .badge.sig i { background: var(--accent); }
 .badge.sim { color: var(--mut); border-style: dashed; background: transparent; }
-.badge.sim i { background: var(--accent); animation: blink 2.4s ease-in-out infinite; }
+.badge.sim i { background: var(--dim); }
 @keyframes blink { 50% { opacity: .3; } }
 .pill { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 11px; border-radius: 999px; font-size: var(--t-xs); border: 1px solid var(--line-2); color: var(--mut); white-space: nowrap; background: var(--card); }
 .pill.ok { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); background: var(--accent-soft); }
@@ -149,7 +149,7 @@ button, input { font: inherit; color: inherit; }
 
 /* ───────────── landing ───────────── */
 .hero { padding: 40px 0 0; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 24px; }
-.hero h1 { max-width: 16ch; }
+.hero h1 { max-width: 20ch; }
 .hero .lead { font-size: var(--t-md); line-height: 1.45; color: var(--mut); max-width: 48ch; letter-spacing: -0.01em; }
 .hero .btns { justify-content: center; }
 .hero-stage { margin-top: 36px; width: 100%; position: relative; }
@@ -321,6 +321,6 @@ button, input { font: inherit; color: inherit; }
 
 .dock-in { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .dock-t { display: inline-flex; align-items: center; gap: 7px; font-size: var(--t-xs); color: var(--mut); white-space: nowrap; padding-left: 4px; }
-.dock-t i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: blink 2.4s ease-in-out infinite; }
+.dock-t i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent);  }
 .dock .btn.sm { padding: 0 9px; }
 @media (max-width: 520px) { .dock-t .lg-only { display: none; } .dock { padding: 0 8px calc(8px + env(safe-area-inset-bottom)); } .app { padding-bottom: 88px; } }
