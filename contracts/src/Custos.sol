@@ -132,6 +132,10 @@ contract Custos {
     mapping(address => uint64) public periodStart;
     mapping(address => uint128) public periodSpent;
     address[] private _agentAssets;
+    // runaway-agent guard: at most `agentMaxCalls` agentSpend calls per agentPeriod window (0 = no quota)
+    uint32 public agentMaxCalls;
+    uint32 public agentCalls;
+    uint64 public agentCallWindowStart;
     mapping(address => bool) public isRecipient;
     address[] private _recipients;
     mapping(uint256 => mapping(uint8 => uint8)) private _outcomeVotes; // epoch => outcome => votes
@@ -171,6 +175,7 @@ contract Custos {
     event AgentSpent(address indexed agent, address indexed asset, address indexed to, uint256 amount, uint256 periodSpent, uint256 periodCap);
     event AgentFrozen(address indexed by, uint8 kind); // kind: 0 owner, 1 guardian
     event AgentUnfrozen();
+    event AgentCallQuotaSet(uint32 maxCalls);
     event SuccessorSet(address indexed successor);
     event OutcomeVoted(address indexed guardian, Outcome outcome);
     event HandedOver(address indexed oldOwner, address indexed newOwner);
@@ -204,6 +209,7 @@ contract Custos {
     error AssetNotAllowed();
     error RecipientNotAllowed();
     error OverPerTxLimit();
+    error OverCallQuota();
     error OverPeriodLimit();
     error RoleConflict();
     error NoSuccessor();
@@ -451,6 +457,18 @@ contract Custos {
         emit RecipientSet(to, allowed);
     }
 
+    /// @notice Runaway-agent guard: cap how many `agentSpend` calls the agent may make per spend window
+    ///         (`agentPeriod`), on top of the amount caps. 0 = no quota. Counted on-chain, so a looping agent
+    ///         cannot grind through the budget in many tiny payments.
+    function setAgentCallQuota(uint32 maxCalls) external onlyOwner live {
+        if (agent == address(0)) revert NoAgent();
+        agentMaxCalls = maxCalls;
+        agentCalls = 0;
+        agentCallWindowStart = 0;
+        _touch();
+        emit AgentCallQuotaSet(maxCalls);
+    }
+
     /// @notice Owner kill-switch: the agent cannot spend until `unfreezeAgent()` (survives owner check-ins).
     function freezeAgent() external onlyOwner live {
         if (agent == address(0)) revert NoAgent();
@@ -494,6 +512,19 @@ contract Custos {
         if (l.perTx == 0) revert AssetNotAllowed();
         if (!isRecipient[to]) revert RecipientNotAllowed();
         if (amount == 0 || amount > l.perTx) revert OverPerTxLimit();
+
+        uint32 maxCalls = agentMaxCalls;
+        if (maxCalls != 0) {
+            uint64 cs = agentCallWindowStart;
+            uint32 calls = agentCalls;
+            if (cs == 0 || block.timestamp >= uint256(cs) + agentPeriod) {
+                cs = uint64(block.timestamp);
+                calls = 0;
+            }
+            if (calls >= maxCalls) revert OverCallQuota();
+            agentCallWindowStart = cs;
+            agentCalls = calls + 1;
+        }
 
         uint64 start = periodStart[asset];
         uint256 spent = periodSpent[asset];
@@ -735,6 +766,8 @@ contract Custos {
     }
 
     function _resetSpent() internal {
+        agentCalls = 0;
+        agentCallWindowStart = 0;
         uint256 n = _agentAssets.length;
         for (uint256 i; i < n; ++i) {
             address a = _agentAssets[i];
@@ -762,6 +795,9 @@ contract Custos {
         agentPeriod = 0;
         agentLateAllowance = 0;
         agentOwnerFrozen = false;
+        agentMaxCalls = 0;
+        agentCalls = 0;
+        agentCallWindowStart = 0;
         uint256 n = _agentAssets.length;
         for (uint256 i; i < n; ++i) {
             address a = _agentAssets[i];

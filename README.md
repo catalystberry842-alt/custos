@@ -12,6 +12,10 @@ mainnet chain id 4663, testnet 46630, ETH gas).
 * **For people.** Skip the agent and it is plain crypto inheritance: N-of-M guardians can release the vault to the beneficiary you chose,
   after a final challenge window in which one check-in cancels everything.
 
+* **Agent Firewall.** Rules enforced *outside* the AI model: every action an agent proposes is decoded and checked (allowlists, spend limits,
+  approval blocking, simulation, replay, kill switch, human approval) before it can reach the signer, and each decision lands in a hash-chained
+  audit trail. The on-chain vault caps remain the hard backstop. See [`docs/firewall.md`](docs/firewall.md).
+
 **Live simulation demo:** https://custos-peach.vercel.app (fake time, funds and AI; nothing on-chain).
 
 There is **no token** and nothing in this repo makes any claim about price or returns.
@@ -24,6 +28,7 @@ There is **no token** and nothing in this repo makes any claim about price or re
 | Smart contracts | [`contracts/`](contracts) | `Custos` (per-owner vault with the AI-agent layer), `CustosFactory`, `IGuardianStaking` stub. Foundry. |
 | Check-in assistant | [`agent/`](agent) | Node/TypeScript: the face of the product. Deterministic scheduler + escalation, **watches the managed AI agent (mock adapter) and tells the owner in plain language** when it spends, nears a limit, is blocked or frozen; adapters (mock/console/Telegram), LLM *wording only* with a rules fallback, web check-in link server. |
 | Demo web app | [`web/`](web) | Next.js: landing, setup wizard (incl. **Your AI agent** step), dashboard with agent activity, budget, FROZEN state and guardian actions, **Fast-forward time** simulation (clearly labelled), optional viem wallet panel. |
+| Agent Firewall | [`firewall/`](firewall) | TypeScript policy engine (15 rules, per-agent policies, kill switch, circuit breaker, human approval queue), pluggable simulator + threat checks, hash-chained "Proof of Agent" audit trail. 58 tests. Web page: `/firewall`. |
 | Docs | [`PLAN.md`](PLAN.md), [`docs/BRAND.md`](docs/BRAND.md), [`docs/DEPLOY-ROBINHOOD.md`](docs/DEPLOY-ROBINHOOD.md), [`docs/token-design.md`](docs/token-design.md) | Architecture + threat model; **step-by-step Robinhood Chain deploy/verify guide + checklist** (instructions only); optional token design (not implemented). |
 | Screenshots | [`shots/`](shots) | Mobile 390×844 and desktop. |
 
@@ -36,7 +41,7 @@ Requirements: Node ≥ 20, Foundry (`forge`, `anvil`).
 bash scripts/test-all.sh
 
 # 1) contracts  (forge-std is vendored in contracts/lib; or: forge install foundry-rs/forge-std --no-git)
-cd contracts && forge test            # 158 tests (unit, scenario, fuzz, reentrancy, hostile tokens, AI-agent layer, Robinhood-chain timing)
+cd contracts && forge test            # 167 tests (unit, scenario, fuzz, reentrancy, hostile tokens, AI-agent layer, Robinhood-chain timing)
 forge coverage --report summary       # 100% lines on src/Custos.sol and the factory
 
 # 2) agent (no credentials needed)
@@ -48,6 +53,9 @@ npm run demo:agent                    # AI agent pays, gets blocked, owner goes 
 npm run demo:agent-return             # …but the owner returns, and the agent is unfrozen
 npm test                              # 60 tests
 npm start                             # real clock + tiny check-in web server on :8787 (console channel)
+
+# 2b) firewall (policy engine, no credentials needed)
+cd firewall && npm install && npm test   # 58 tests
 
 # 3) web demo
 cd web && npm install
@@ -123,7 +131,7 @@ check-in ─── interval ───┬─── grace ───┬─ guardian
   recoverable via `sweep()` / `sweepToken()`; a beneficiary that rejects ETH can `redirectPayout()` after release.
 * **Events** for everything: `CheckedIn`, `GuardianApproved`, `ChallengeStarted`, `ReleaseCancelled`, `Released`, `Paused`,
   `GuardianReplaced`, `GuardiansUpdated`, `BeneficiaryChanged`, `TimingsUpdated`, `Forwarded`, `TransferFailed`, …
-* Target EVM: `cancun` (to be confirmed by the testnet deploy; fall back to `shanghai` if needed). Contract sizes (~19.9 KB vault, ~22.8 KB factory; built with `via_ir`, both under Ethereum's 24 KB so the bytecode stays portable) are far below Robinhood's 96 KB limit and Ethereum's 24 KB. Bounds: interval 1d-5y, grace 1d-365d, challenge 1d-90d, ≤10 guardians, ≤32 tokens.
+* Target EVM: `cancun` (to be confirmed by the testnet deploy; fall back to `shanghai` if needed). Contract sizes (~20.6 KB vault, ~23.5 KB factory (≈1 KB under the 24 KB limit); built with `via_ir`, both under Ethereum's 24 KB so the bytecode stays portable) are far below Robinhood's 96 KB limit and Ethereum's 24 KB. Bounds: interval 1d-5y, grace 1d-365d, challenge 1d-90d, ≤10 guardians, ≤32 tokens.
 
 ### Check-in assistant (`agent/`)
 * `engine.decide()` is **pure and deterministic**: (profile, on-chain snapshot, now, already-sent keys) → exactly which
@@ -154,6 +162,15 @@ check-in ─── interval ───┬─── grace ───┬─ guardian
   the check-in assistant's messages as an activity feed, and a **FROZEN** state with the guardian actions: *Freeze*, *Hand over* (→ successor) and *Shut down* (→ beneficiary). **Fast-forward** drives both stories: owner silent → agent frozen → guardians vote → handover; or the owner returns and the agent is unfrozen.
 * Optional **Real chain** panel (collapsed): viem + the browser's injected wallet only (no WalletConnect/Coinbase/Phantom),
   read-only lookup of a vault on **Robinhood Chain Testnet (default) or Mainnet** (viem chain definitions in `web/lib/robinhood.ts`, optional own https RPC URL) and owner `checkIn()`. The simulation stays the default. The panel never asks for keys and does not deploy anything.
+
+### Agent Firewall (`firewall/`, `/firewall`)
+* **Principle:** rules live outside the model. A prompt is not a security boundary, so the firewall decodes the raw calldata itself and ignores whatever the agent says it intends.
+* **Rules (15):** kill switch, chain, replay/nonce, threat check, token approvals (unlimited `approve`/`permit`/`setApprovalForAll` always blocked), asset, contract and function allowlists, recipient allowlist, per-tx / daily / lifetime limits, transaction quota (runaway guard), human-approval threshold, simulation. Outcome: **approve**, **block** (with reasons) or **pending human approval**. A circuit breaker freezes an agent after repeated blocks.
+* **Pluggable simulation:** `Simulator` interface with a deterministic mock and an `eth_call` implementation; a simple threat checker (known-bad, lookalike addresses, approval risk, unverified contracts).
+* **Proof of Agent:** hash-chained audit trail of which agent asked for what, which rules passed or failed and what was decided. It proves what the *firewall decided*, not that the agent is honest.
+* **On-chain split:** the vault keeps its hard caps (per-payment, per-period, payee allowlist, freeze) and gained a small **call quota** (`setAgentCallQuota`). The factory is near the 24 KB limit, so the richer checks are off-chain by design.
+* **Honest limits:** a daily limit is not a loss limit; a compromised allowlisted payee is undetectable; the simulator is a mock, not a chain. Comparison with AgentARC, MetaMask Agent Wallet and ERC-8196, and the full limits list, are in [`docs/firewall.md`](docs/firewall.md).
+* The web page runs the real engine in the browser with fake addresses, funds and time: policy editor, live feed, pending queue, attack tests (prompt injection, over-limit spend, unlimited approval, unknown contract, runaway loop, replay) and an audit viewer with hash verification and a tamper demo.
 
 ## Security notes
 * **Non-custodial; no key handling anywhere.** No code path reads, stores or requests a private key or seed phrase; the
@@ -190,9 +207,10 @@ check-in ─── interval ───┬─── grace ───┬─ guardian
 
 ## Project layout
 ```
+firewall/   src/{calldata,policy,firewall,simulate,threat,audit,sha256,fixtures,types}.ts  test/
 contracts/  src/{Custos,CustosFactory,Brand}.sol  src/interfaces/  test/  script/{Deploy,DeployRobinhood}.s.sol
 agent/      src/{brand,chainModel,engine,explain,wording,managed,agent,channels,chain,store,server,cli}.ts  test/  examples/
-web/        app/{page,setup,dashboard}  components/  lib/{brand,sim,robinhood}.ts  lib/agent/ (synced copy)  scripts/shots.mjs
-scripts/    test-all.sh  anvil-e2e.sh  sync-model.sh  deploy-robinhood.sh  rename-product.sh
-docs/       BRAND.md  DEPLOY-ROBINHOOD.md  token-design.md
+web/        app/{page,setup,dashboard}  components/  lib/{brand,sim,robinhood}.ts  lib/agent/ + lib/firewall/ (synced copies)  lib/fwdemo.ts  scripts/shots*.mjs
+scripts/    test-all.sh  anvil-e2e.sh  sync-model.sh  sync-firewall.sh  deploy-robinhood.sh  rename-product.sh
+docs/       firewall.md  BRAND.md  DEPLOY-ROBINHOOD.md  token-design.md
 ```

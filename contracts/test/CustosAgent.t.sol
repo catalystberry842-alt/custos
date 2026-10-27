@@ -1073,3 +1073,101 @@ contract AgentFuzzTest is AgentBase {
         }
     }
 }
+
+/// On-chain runaway-agent guard: per-window call quota on top of the amount caps.
+contract AgentCallQuotaTest is AgentBase {
+    function test_noQuotaByDefault() public {
+        assertEq(v.agentMaxCalls(), 0);
+        for (uint256 i; i < 10; ++i) _spendEth(0.01 ether);
+    }
+
+    function test_quotaBlocksTheNextCallInTheWindow() public {
+        vm.prank(owner);
+        v.setAgentCallQuota(3);
+        for (uint256 i; i < 3; ++i) _spendEth(0.01 ether);
+        vm.expectRevert(Custos.OverCallQuota.selector);
+        _spendEth(0.01 ether);
+        assertEq(v.agentCalls(), 3);
+    }
+
+    function test_quotaResetsWhenTheWindowRolls() public {
+        vm.prank(owner);
+        v.setAgentCallQuota(2);
+        _spendEth(0.01 ether);
+        _spendEth(0.01 ether);
+        vm.warp(block.timestamp + PERIOD);
+        vm.prank(owner);
+        v.checkIn();
+        _spendEth(0.01 ether);
+        assertEq(v.agentCalls(), 1);
+    }
+
+    function test_quotaCountsAcrossAssets() public {
+        vm.prank(owner);
+        v.setAgentCallQuota(2);
+        _spendEth(0.01 ether);
+        vm.prank(agent);
+        v.agentSpend(address(usdc), vendor, 1e6);
+        vm.expectRevert(Custos.OverCallQuota.selector);
+        vm.prank(agent);
+        v.agentSpend(address(usdc), vendor, 1e6);
+    }
+
+    function test_revertedSpendDoesNotConsumeQuota() public {
+        vm.prank(owner);
+        v.setAgentCallQuota(1);
+        vm.expectRevert(Custos.OverPerTxLimit.selector);
+        _spendEth(ETH_TX + 1);
+        assertEq(v.agentCalls(), 0);
+        _spendEth(0.01 ether);
+    }
+
+    function test_onlyOwnerCanSetQuota_andNeedsAnAgent() public {
+        vm.prank(rando);
+        vm.expectRevert();
+        v.setAgentCallQuota(1);
+        vm.prank(agent);
+        vm.expectRevert();
+        v.setAgentCallQuota(1000);
+        vm.startPrank(owner);
+        v.revokeAgent();
+        vm.expectRevert(Custos.NoAgent.selector);
+        v.setAgentCallQuota(1);
+        vm.stopPrank();
+    }
+
+    function test_quotaIsClearedWithTheAgent() public {
+        vm.startPrank(owner);
+        v.setAgentCallQuota(5);
+        v.revokeAgent();
+        v.setAgent(agent, PERIOD, GRACE);
+        vm.stopPrank();
+        assertEq(v.agentMaxCalls(), 0);
+        assertEq(v.agentCalls(), 0);
+    }
+
+    function test_replacingTheAgentResetsTheCounter() public {
+        vm.startPrank(owner);
+        v.setAgentCallQuota(1);
+        vm.stopPrank();
+        _spendEth(0.01 ether);
+        vm.prank(owner);
+        v.setAgent(agent, PERIOD, GRACE); // re-submitting resets spend counters
+        _spendEth(0.01 ether);
+    }
+
+    function testFuzz_neverMoreCallsThanTheQuotaPerWindow(uint8 quota, uint8 attempts) public {
+        quota = uint8(bound(quota, 1, 20));
+        attempts = uint8(bound(attempts, 0, 60));
+        vm.prank(owner);
+        v.setAgentCallQuota(quota);
+        uint256 ok;
+        for (uint256 i; i < attempts; ++i) {
+            vm.prank(agent);
+            try v.agentSpend(address(usdc), vendor, 1e6) {
+                ++ok;
+            } catch {}
+        }
+        assertLe(ok, quota);
+    }
+}

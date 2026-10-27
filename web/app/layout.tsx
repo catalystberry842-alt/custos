@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./visuals.css";
 import "./motion.css";
+import "./firewall.css";
 import SiteHeader from "@/components/SiteHeader";
 import { THEME_INIT } from "@/components/ThemeToggle";
 import { BRAND } from "@/lib/brand";

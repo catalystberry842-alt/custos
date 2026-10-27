@@ -1,0 +1,42 @@
+// Firewall-only screenshots. Usage (from web/): node scripts/shots-firewall.mjs http://localhost:3100 ../shots/fw [themes]
+import { chromium } from "playwright";
+import { mkdirSync } from "node:fs";
+const base = process.argv[2] ?? "http://localhost:3100";
+const out = process.argv[3] ?? "../shots/fw";
+const THEMES = (process.argv[4] ?? "light,dark").split(",");
+mkdirSync(out, { recursive: true });
+const b = await chromium.launch();
+const overflow = [];
+for (const theme of THEMES) for (const [vtag, vp, dpr, mobile] of [["mobile", { width: 390, height: 844 }, 2, true], ["desktop", { width: 1440, height: 900 }, 1, false]]) {
+  const tag = `${theme}-${vtag}`;
+  const ctx = await b.newContext({ viewport: vp, deviceScaleFactor: dpr, isMobile: mobile, hasTouch: mobile });
+  await ctx.addInitScript((t) => { try { localStorage.setItem("custos-theme", t); } catch {} }, theme);
+  const p = await ctx.newPage();
+  const chk = async (n) => { if (await p.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)) overflow.push(`${tag} ${n}`); };
+  const click = async (name) => { await p.getByRole("button", { name }).first().click(); await p.waitForTimeout(250); };
+  await p.goto(base + "/firewall", { waitUntil: "networkidle" });
+  await chk("firewall");
+  await p.screenshot({ path: `${out}/${tag}-01-firewall-empty.png` });
+  await click("Run all");
+  await p.waitForSelector(".fw-item");
+  await p.waitForTimeout(400);
+  await chk("firewall-ran");
+  await p.evaluate(() => window.scrollTo(0, 0));
+  await p.screenshot({ path: `${out}/${tag}-02-after-attacks.png` });
+  await p.screenshot({ path: `${out}/${tag}-03-after-attacks-full.png`, fullPage: true });
+  await click("Verify chain");
+  await click("Try tampering");
+  await p.locator(".fw-e").screenshot({ path: `${out}/${tag}-04-audit-tamper.png` });
+  await p.locator(".fw-d").screenshot({ path: `${out}/${tag}-05-policy.png` });
+  await p.locator(".fw-b").screenshot({ path: `${out}/${tag}-06-pending.png` });
+  await chk("firewall-audit");
+  await p.goto(base + "/", { waitUntil: "networkidle" });
+  await p.waitForTimeout(300);
+  await p.locator("#firewall").screenshot({ path: `${out}/${tag}-07-landing-firewall.png` });
+  await chk("landing");
+  await p.evaluate(() => window.scrollTo(0, 0));
+  await p.screenshot({ path: `${out}/${tag}-08-landing-header.png` });
+  await ctx.close();
+}
+await b.close();
+console.log(overflow.length ? "OVERFLOW: " + overflow.join(", ") : "no horizontal overflow");

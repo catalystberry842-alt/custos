@@ -69,6 +69,26 @@ for (const theme of THEMES) for (const [vtag, vp, dpr, mobile] of [["mobile", { 
   await p.evaluate(() => window.scrollTo(0, 0));
   await shot("13-dashboard-owner-returned", false);
 
+  // Agent Firewall: attack tests, pending queue, audit viewer
+  await p.goto(base + "/firewall", { waitUntil: "networkidle" });
+  await chk("firewall");
+  await shot("16-firewall-empty", false);
+  await click(p, "Run all");
+  await p.waitForSelector(".fw-item");
+  await p.waitForTimeout(300);
+  await chk("firewall-ran");
+  await shot("17-firewall-after-attacks", false);
+  await shot("17-firewall-after-attacks-full");
+  await click(p, "Verify chain");
+  await click(p, "Try tampering");
+  await p.locator("#fw-aud").scrollIntoViewIfNeeded();
+  await p.locator(".fw-e").screenshot({ path: `${out}/${tag}-18-firewall-audit-tamper.png` });
+  await p.locator(".fw-d").screenshot({ path: `${out}/${tag}-19-firewall-policy.png` });
+  await chk("firewall-audit");
+  await p.goto(base + "/#firewall", { waitUntil: "networkidle" });
+  await p.waitForTimeout(400);
+  await p.locator("#firewall").screenshot({ path: `${out}/${tag}-20-landing-firewall.png` });
+
   // optional Real chain panel (Robinhood Chain testnet default; mainnet shows a real-funds warning)
   await p.getByText("Real chain · optional").click();
   await p.waitForSelector("[aria-label=Network]");

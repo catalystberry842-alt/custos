@@ -1,0 +1,9 @@
+{
+  "name": "custos-firewall",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Custos Agent Firewall: a portable policy engine that checks every proposed agent action BEFORE it reaches a signer. Zero runtime dependencies.",
+  "scripts": { "test": "vitest run", "typecheck": "tsc --noEmit" },
+  "devDependencies": { "@types/node": "^20.14.0", "typescript": "^5.6.0", "vitest": "^2.1.0" }
+}

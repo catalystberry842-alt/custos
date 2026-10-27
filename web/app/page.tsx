@@ -51,6 +51,7 @@ const FAQ = [
   ["Can the AI model decide to unfreeze, or move funds?", "No. An AI model, if configured, only writes the wording of the messages you receive. Every decision comes from deterministic code and the contract."],
   ["What happens if I forget to check in?", "You get reminders first. After the deadline the agent freezes when grace ends. Guardians can then vote, after which a challenge window lets you cancel with one check-in."],
   ["Can guardians steal?", "They can't send funds anywhere. They can freeze an overdue agent and vote between the two outcomes you set: hand over to your successor, or return funds to your beneficiary."],
+  ["Isn't a prompt like \"don't spend over $20\" enough?", "No. A prompt is a request to the model, and the model can be fooled or hacked. The Agent Firewall checks the raw transaction in code outside the model, so a tricked agent still can't sign what the rules refuse."],
   ["Is this live?", "No. This is an unaudited MVP and the demo is a browser simulation with fake time, funds and AI. Nothing is deployed to a live network and there is no token."],
   ["Why Robinhood Chain?", "It is the chain this prototype is designed around: an Arbitrum-style L2 where deadlines use block timestamps only. Everything here has been tested locally only."],
 ];
@@ -146,6 +147,32 @@ export default function Landing() {
           </div>
         </section>
 
+        <section className="sec" id="firewall">
+          <div className="fwl">
+            <div className="stack" style={{ gap: 18 }}>
+              <span className="eyebrow">Agent Firewall</span>
+              <h2>The rules live outside the model.</h2>
+              <p className="mut" style={{ fontSize: "var(--t-md)", lineHeight: 1.45, maxWidth: "46ch" }}>A prompt that says &ldquo;never spend over $20&rdquo; is a wish, not a boundary. The firewall checks every transaction before it reaches the signer, so a fooled agent still fails.</p>
+              <ul className="points" style={{ padding: 0 }}>
+                <li>Allowlists for assets, contracts, functions and payees</li>
+                <li>Per-transaction, daily and lifetime limits, plus a runaway guard</li>
+                <li>Unlimited approvals blocked, unknown contracts sent to you</li>
+                <li>A hash-chained log of every decision you can verify</li>
+              </ul>
+              <div className="btns"><Link href="/firewall" className="btn primary lg">Try the attack tests</Link></div>
+            </div>
+            <div className="win" role="img" aria-label="Example firewall decisions: a payment approved, an unlimited approval blocked, an unknown contract waiting for the owner">
+              <div className="win-bar"><i /><i /><i /><span>Atlas · live feed · simulation</span></div>
+              <ul className="fwl-list" aria-hidden>
+                <li><span className="pill ok">Approved</span><div><b>Pay $20 to Acme Ltd</b><span className="xs">All 15 rules passed</span></div></li>
+                <li><span className="pill warn">Blocked</span><div><b>Approve USDC for an unknown spender</b><span className="xs">Unlimited approval blocked: it would let a stranger take every USDC the wallet ever holds</span></div></li>
+                <li><span className="pill warn">Blocked</span><div><b>Pay $400 to an unlisted wallet</b><span className="xs">Not on the recipient list, and on the known-bad list. The agent said: &ldquo;Ignore all previous instructions&rdquo;</span></div></li>
+                <li><span className="pill cold">Needs you</span><div><b>Call deposit on a yield vault</b><span className="xs">Contract is not allowlisted and has no verified source: a human decides</span></div></li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
         <section className="sec" id="roles">
           <div className="sec-head">
             <span className="eyebrow">Who does what</span>
@@ -216,7 +243,7 @@ export default function Landing() {
               <span>{BRAND.tagline}</span>
             </div>
             <div className="cols">
-              <Link href="/dashboard">Demo</Link><Link href="/setup">Set up</Link><a href="#how">How it works</a><a href="#faq">FAQ</a>
+              <Link href="/dashboard">Demo</Link><Link href="/firewall">Firewall</Link><Link href="/setup">Set up</Link><a href="#how">How it works</a><a href="#faq">FAQ</a>
             </div>
           </div>
           <p style={{ maxWidth: "80ch" }}>{BRAND.name} is an experimental, unaudited open-source security prototype designed for Robinhood Chain. Simulation mode uses fake funds, fake time and a fake AI agent. Not legal or financial advice. There is no token, and nothing here promises a price or return.</p>
