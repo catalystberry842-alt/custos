@@ -12,6 +12,8 @@ mainnet chain id 4663, testnet 46630, ETH gas).
 * **For people.** Skip the agent and it is plain crypto inheritance: N-of-M guardians can release the vault to the beneficiary you chose,
   after a final challenge window in which one check-in cancels everything.
 
+**Live simulation demo:** https://custos-peach.vercel.app (fake time, funds and AI; nothing on-chain).
+
 There is **no token** and nothing in this repo makes any claim about price or returns.
 
 > ⚠️ **MVP, unaudited, never deployed.** Everything here runs locally. No testnet or mainnet deployment, no token, no real funds,
