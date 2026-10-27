@@ -7,4 +7,7 @@ export * from "./simulate";
 export * from "./threat";
 export * from "./policy";
 export * from "./firewall";
+export * from "./vault";
+export * from "./rpcsim";
+export * from "./stateless";
 export * from "./fixtures";

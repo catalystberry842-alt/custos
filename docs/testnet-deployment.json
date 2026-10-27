@@ -1,0 +1,34 @@
+{
+  "network": "Robinhood Chain Testnet",
+  "chainId": 46630,
+  "rpc": "https://rpc.testnet.chain.robinhood.com",
+  "explorer": "https://explorer.testnet.chain.robinhood.com",
+  "factory": "0xe7793b7c612dd9174134ba5ebf28b0d743c1ef38",
+  "factoryBlock": 143747383,
+  "demoVault": "0x7Cd7D6b00023B298EB869E3201af077daC71955C",
+  "demoVaultBlock": 143747774,
+  "deployer": "0xBD6518c9fD975304f0858d7378364Ad240192a1a",
+  "agent": "0x78141a8F7c99ee9bbb3148096F4add6Fed925888",
+  "demoRecipients": {
+    "Acme Ltd": "0xa93f5F5f3E3a1C9a5017298cd64A643Ec16f717e",
+    "Landlord": "0xBc92485A0c49dCc7fCd586cf1AB627Fd5f97eb0F"
+  },
+  "demoGuardians": [
+    "0x7ed5025E60DeDF9f9c43Ce2d8CBe17aDB3EbBDEf",
+    "0xd4ea00c7fC838C9D3E676DCE471Cd45308C47061"
+  ],
+  "demoBeneficiary": "0x8DbA701d496681e53E901bF38b0609BD8bc2BCFf",
+  "setupTxs": {
+    "deployFactory": "0xda3edb6d333205a372cddec0531e2878cc646fcd4864649f7a6f009666afb4d5",
+    "createVault": "0xeaa65847914409b7bd4d4020052020d59d1f8ec28ec8a8d7e311fafcb788b9c0",
+    "setAgent": "0x8cd31e6641da59d24bc49c32f2de7b09c4028107fe1ddc6d9567540aff652aa1",
+    "setAssetLimit_ETH": "0xae7f8b19bc3465624b848267cc5ac14674e689cace5663d013649aedef46fe16",
+    "setRecipient_acme": "0x3c5fb8edd4776ae8f834a8071fed38a1007376dd438eba2802d56fded5009f3b",
+    "setRecipient_landlord": "0x4d08f28f33f7e533e7d6ff346c3049f6900fd4e7f9172fa34eba93e078ef42c6",
+    "setAgentCallQuota": "0x8c48706812df9362c6bff54849e6cc0dc95f35d5d3150e2813bf86a88473a0c2",
+    "depositVault": "0xa9f5bb0906c0f62ef7c7e92320d9f149ddac9213d303323202c0ffdc7dde2fa8",
+    "fundAgentGas": "0xce5369bc35ff47b9b24acec7c1a6e4f1c27c2c422180b5b65d3d712f9cd06f1f",
+    "setTimings": "0x968d3255f79bc13e34527061b9f283c4a7ee4c4f95ac8bed38fd26dae26a4525"
+  },
+  "note": "Throwaway TESTNET deployment. Unaudited. The demo agent key is a separate throwaway testnet key; nothing here is mainnet."
+}

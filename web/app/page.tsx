@@ -52,8 +52,8 @@ const FAQ = [
   ["What happens if I forget to check in?", "You get reminders first. After the deadline the agent freezes when grace ends. Guardians can then vote, after which a challenge window lets you cancel with one check-in."],
   ["Can guardians steal?", "They can't send funds anywhere. They can freeze an overdue agent and vote between the two outcomes you set: hand over to your successor, or return funds to your beneficiary."],
   ["Isn't a prompt like \"don't spend over $20\" enough?", "No. A prompt is a request to the model, and the model can be fooled or hacked. The Agent Firewall checks the raw transaction in code outside the model, so a tricked agent still can't sign what the rules refuse."],
-  ["Is this live?", "No. This is an unaudited MVP and the demo is a browser simulation with fake time, funds and AI. Nothing is deployed to a live network and there is no token."],
-  ["Why Robinhood Chain?", "It is the chain this prototype is designed around: an Arbitrum-style L2 where deadlines use block timestamps only. Everything here has been tested locally only."],
+  ["Is this live?", "On the Robinhood Chain testnet, yes: a real factory and vault contract with real transactions in the live app, using test ETH. The dashboard demo is a browser simulation. Nothing is on mainnet, it is unaudited and there is no token."],
+  ["Why Robinhood Chain?", "It is the chain this prototype is designed around: an Arbitrum-style L2 where deadlines use block timestamps only. The contracts are deployed to its testnet only, and have not been audited."],
 ];
 
 const STATS = [
@@ -71,8 +71,8 @@ export default function Landing() {
           <h1>A guardian for your AI agent.</h1>
           <p className="lead">Give your agent a budget it can&apos;t exceed. If you go silent, it freezes and people you trust decide what happens next.</p>
           <div className="btns">
-            <Link href="/dashboard" className="btn primary lg">Try the demo</Link>
-            <Link href="/setup" className="btn lg">Set up your agent</Link>
+            <Link href="/live" className="btn primary lg">Open the live testnet app</Link>
+            <Link href="/dashboard" className="btn lg">Try the simulation</Link>
           </div>
           <div className="hero-stage"><HeroProduct /></div>
         </section>
@@ -159,7 +159,7 @@ export default function Landing() {
                 <li>Unlimited approvals blocked, unknown contracts sent to you</li>
                 <li>A hash-chained log of every decision you can verify</li>
               </ul>
-              <div className="btns"><Link href="/firewall" className="btn primary lg">Try the attack tests</Link></div>
+              <div className="btns"><Link href="/live" className="btn primary lg">Run it live on testnet</Link><Link href="/firewall" className="btn lg">Try the simulation</Link></div>
             </div>
             <div className="win" role="img" aria-label="Example firewall decisions: a payment approved, an unlimited approval blocked, an unknown contract waiting for the owner">
               <div className="win-bar"><i /><i /><i /><span>Atlas · live feed · simulation</span></div>
@@ -206,8 +206,8 @@ export default function Landing() {
               ["Bounded loss, not zero loss", "A leaked agent key can still spend up to one period's budget, to your allowed payees. Pick small budgets."],
               ["It can't judge intent", "If an allowed payee is itself compromised, or the agent overpays a real vendor within limits, the contract can't tell."],
               ["Unaudited MVP", "Tested with unit, fuzz and local-chain tests only. Don't put real value in it before an independent audit."],
-              ["Simulation only", "This site runs in your browser with fake time, funds and AI. Nothing is deployed to any network."],
-              ["Monitoring is a mock", "The assistant reads a simulated agent's activity. A real activity feed is not built yet."],
+              ["Testnet and simulation only", "The live app runs on Robinhood Chain testnet with test ETH. The dashboard and attack tests are browser simulations with fake time, funds and AI. Nothing is on mainnet."],
+              ["Monitoring is partly a mock", "The live app reads real chain events. The assistant on the dashboard still reads a simulated agent."],
               ["Not legal advice", "It's not a will. Inheritance and tax law still apply, and there is no token."],
             ].map(([t, d]) => (
               <div key={t}><h3>{t}</h3><p>{d}</p></div>
@@ -227,12 +227,13 @@ export default function Landing() {
         <section className="sec">
           <div className="cta">
             <h2>See it freeze in under a minute.</h2>
-            <p>Fast-forward time in the demo and watch the agent spend, get stopped, freeze and hand over.</p>
+            <p>Run a real agent against a real testnet vault, or fast-forward time in the simulation and watch it spend, get stopped, freeze and hand over.</p>
             <div className="btns">
-              <Link href="/dashboard" className="btn primary lg">Open the demo</Link>
+              <Link href="/live" className="btn primary lg">Open the live app</Link>
+              <Link href="/dashboard" className="btn lg">Try the simulation</Link>
               <Link href="/setup" className="btn lg">Set up your agent</Link>
             </div>
-            <SimBanner text="Fake time, funds and AI. Nothing is on-chain." />
+            <SimBanner text="The dashboard and attack tests use fake time, funds and AI. The live app uses testnet ETH." />
           </div>
         </section>
 
@@ -243,10 +244,10 @@ export default function Landing() {
               <span>{BRAND.tagline}</span>
             </div>
             <div className="cols">
-              <Link href="/dashboard">Demo</Link><Link href="/firewall">Firewall</Link><Link href="/setup">Set up</Link><a href="#how">How it works</a><a href="#faq">FAQ</a>
+              <Link href="/live">Live</Link><Link href="/dashboard">Demo</Link><Link href="/firewall">Firewall</Link><Link href="/setup">Set up</Link><a href="#how">How it works</a><a href="#faq">FAQ</a>
             </div>
           </div>
-          <p style={{ maxWidth: "80ch" }}>{BRAND.name} is an experimental, unaudited open-source security prototype designed for Robinhood Chain. Simulation mode uses fake funds, fake time and a fake AI agent. Not legal or financial advice. There is no token, and nothing here promises a price or return.</p>
+          <p style={{ maxWidth: "80ch" }}>{BRAND.name} is an experimental, unaudited open-source security prototype designed for Robinhood Chain. The live app uses testnet ETH. Simulation mode uses fake funds, fake time and a fake AI agent. Not legal or financial advice. There is no token, and nothing here promises a price or return.</p>
         </footer>
       </div>
     </main>

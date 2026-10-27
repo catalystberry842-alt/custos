@@ -1,0 +1,39 @@
+/* /live: real Robinhood Chain testnet app. Same tokens as the rest of Custos. */
+.modesw { display: inline-flex; padding: 3px; border: 1px solid var(--line-2); border-radius: 999px; background: var(--card); gap: 2px; }
+.modesw a { display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 12px; border-radius: 999px; font-size: 13px; color: var(--mut); white-space: nowrap; }
+.modesw a.on { background: var(--text); color: var(--bg); }
+.modesw i { width: 6px; height: 6px; border-radius: 50%; background: var(--dim); }
+.modesw i.live { background: var(--accent); }
+.modesw a.on i.live { background: #7BD3A0; }
+.lv { gap: 18px; }
+.lv-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+.lv-grid > * { min-width: 0; }
+.lv-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.lv-kv { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
+.lv-kv > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.lv-kv b { font-weight: 500; font-size: var(--t-sm); overflow-wrap: anywhere; }
+.lv-big { font-family: var(--head); font-weight: 560; letter-spacing: -0.04em; font-size: 26px; line-height: 1.05; }
+.lv-link { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+.lv-link:hover { text-decoration-color: var(--accent); }
+.lv-presets { display: flex; flex-direction: column; }
+.lv-pre { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line); }
+.lv-pre:first-child { border-top: 0; }
+.lv-pre > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.lv-run { display: flex; flex-direction: column; gap: 6px; padding: 13px 14px; border: 1px solid var(--line); border-left-width: 3px; border-radius: 12px; background: var(--input); }
+.lv-run.approve { border-left-color: var(--accent); } .lv-run.block { border-left-color: var(--danger); } .lv-run.pending { border-left-color: var(--frost); }
+.lv-feed { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; max-height: 560px; overflow-y: auto; }
+.lv-feed li { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 11px 0; border-top: 1px solid var(--line); align-items: baseline; }
+.lv-feed li:first-child { border-top: 0; }
+.lv-feed li > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.lv-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: var(--t-xs); color: var(--mut); }
+.lv-steps li { display: grid; grid-template-columns: 14px 1fr; gap: 8px; align-items: baseline; }
+.lv-steps i { width: 7px; height: 7px; border-radius: 50%; border: 1px solid var(--dim); display: block; }
+.lv-steps li.done i { background: var(--accent); border-color: var(--accent); } .lv-steps li.now i { border-color: var(--text); background: var(--text); }
+.lv-form { display: grid; grid-template-columns: 1fr; gap: 12px; }
+.lv-honest { display: grid; gap: 8px; font-size: var(--t-xs); color: var(--mut); line-height: 1.5; }
+.lv-honest b { color: var(--text); }
+.lv-honest ul { margin: 0; padding-left: 18px; display: grid; gap: 3px; }
+.lv-bar { height: 6px; border-radius: 999px; background: var(--track); overflow: hidden; }
+.lv-bar > i { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+@media (min-width: 900px) { .lv-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .lv-kv { grid-template-columns: repeat(3, 1fr); } .lv-form.two { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 520px) { .lv-form .input.mono, .lv-pre .input.mono { font-size: 11.5px; padding: 0 10px; } }

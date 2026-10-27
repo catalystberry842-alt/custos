@@ -26,11 +26,12 @@ case "$net" in
 esac
 
 [ -z "${PRIVATE_KEY:-}" ] || die "PRIVATE_KEY is set in your environment. Unset it. This project never uses raw private keys (use --account or --ledger)."
-signer=(); signer_kind=""; broadcast=0; verify=0; sender=""
+signer=(); signer_kind=""; broadcast=0; verify=0; sender=""; pwfile=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --private-key|--private-keys|--mnemonic*|--interactives|--keystore) die "refused: raw key material flags are not allowed. Use --account <name> or --ledger.";;
     --account) [ $# -ge 2 ] || die "--account needs a keystore name"; signer=(--account "$2"); signer_kind="account"; shift 2;;
+    --password-file) [ $# -ge 2 ] || die "--password-file needs a path"; [ "$net" = testnet ] || die "--password-file is for throwaway TESTNET keystores only; on mainnet type the password interactively or use --ledger."; pwfile="$2"; shift 2;;
     --ledger) signer=(--ledger); signer_kind="ledger"; shift;;
     --sender) [ $# -ge 2 ] || die "--sender needs an address"; sender="$2"; shift 2;;
     --rpc-url) [ $# -ge 2 ] || die "--rpc-url needs a URL"; RPC="$2"; shift 2;;
@@ -57,6 +58,7 @@ got=$(cast chain-id --rpc-url "$RPC") || die "cannot reach RPC"
 args=(script script/DeployRobinhood.s.sol:DeployRobinhood --rpc-url "$RPC" --chain-id "$CHAIN_ID")
 [ -z "$sender" ] || args+=(--sender "$sender")
 [ "${#signer[@]}" -eq 0 ] || args+=("${signer[@]}")
+[ -z "$pwfile" ] || args+=(--password-file "$pwfile")
 
 if [ "$broadcast" = 0 ]; then
   echo "DRY-RUN (simulation only; nothing is signed or sent). Add --broadcast to really deploy."

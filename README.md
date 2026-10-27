@@ -75,6 +75,10 @@ Renaming the product: `bash scripts/rename-product.sh <Name>` (see [`docs/BRAND.
 Optional environment (see `.env.example`): `ANTHROPIC_API_KEY`, `TELEGRAM_BOT_TOKEN`, `CUSTOS_LINK_SECRET`,
 `CUSTOS_STATE`, `CUSTOS_RPC_URL` (Robinhood RPC, read-only). **None are needed**; with none set, the agent runs in mock mode with rules-based wording.
 
+## Live on Robinhood Chain testnet
+
+The `/live` page runs a real vault on Robinhood Chain testnet (46630): factory `0xe7793b7c612dd9174134ba5ebf28b0d743c1ef38`, demo vault `0x7Cd7D6b00023B298EB869E3201af077daC71955C`. Connect an injected browser wallet, check in, create your own vault, and let a real agent key pay through the firewall (real `eth_simulateV1` on the node, owner-signed approvals, hash-chained and signed audit trail). Every transaction links to the explorer. See [docs/testnet.md](docs/testnet.md) for addresses, tx hashes and exactly what is on-chain versus off-chain. A **Testnet (live) / Simulation** switch separates it from the offline fake-funds demo at `/firewall` and `/dashboard`. Testnet only: no mainnet deployment and no token.
+
 ## How it works
 
 ### The AI-agent layer (the point of the product)

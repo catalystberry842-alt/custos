@@ -17,7 +17,11 @@ export interface AgentRuntime {
 export const newRuntime = (): AgentRuntime => ({ lastNonce: -1, seen: [], frozen: false, spends: [], cumulativeUsd: 0, approvedTs: [], blockedTs: [] });
 
 export const DAY_MS = 86_400_000;
-export const fmtUsd = (n: number) => (Number.isFinite(n) ? `$${n.toLocaleString("en-US", { maximumFractionDigits: 2 })}` : "unlimited");
+export const fmtUsd = (n: number, unit?: string) => {
+  if (!Number.isFinite(n)) return "unlimited";
+  if (unit && unit !== "$") return `${Number(n.toPrecision(3)).toString()} ${unit}`;
+  return `$${n.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
+};
 const short = (a?: string) => (a ? a.slice(0, 6) + "…" + a.slice(-4) : "?");
 
 export function valueUsd(policy: AgentPolicy, asset: string | undefined, raw: bigint | undefined): number | undefined {
@@ -46,6 +50,7 @@ const SPENDING = new Set(["native_transfer", "erc20_transfer", "erc20_transferFr
 /** Pure: every rule is evaluated (no early exit) so the audit trail shows exactly which rules passed and which failed. */
 export function evaluatePolicy(i: EvalInput): Evaluation {
   const { policy: p, rt, action, decoded: d, sim } = i;
+  const f = (n: number) => fmtUsd(n, p.unit);
   const rules: RuleResult[] = [];
   const add = (rule: string, label: string, ok: boolean, severity: RuleResult["severity"], pass: string, fail: string) =>
     rules.push({ rule, label, ok, severity: ok ? "info" : severity, detail: ok ? pass : fail });
@@ -104,22 +109,22 @@ export function evaluatePolicy(i: EvalInput): Evaluation {
   } else add("destination", "Destination", true, "block", "No direct recipient", "");
   // 9 limits
   const perTxOk = effective <= p.perTxUsd;
-  add("per_tx", "Per-transaction limit", perTxOk, "block", `${fmtUsd(effective)} is within the ${fmtUsd(p.perTxUsd)} limit`,
-    `${fmtUsd(effective)} is over the ${fmtUsd(p.perTxUsd)} per-transaction limit${effective > declaredUsd && simOut > declaredUsd ? ` (simulation shows the call moves more than it declares)` : ""}`);
+  add("per_tx", "Per-transaction limit", perTxOk, "block", `${f(effective)} is within the ${f(p.perTxUsd)} limit`,
+    `${f(effective)} is over the ${f(p.perTxUsd)} per-transaction limit${effective > declaredUsd && simOut > declaredUsd ? ` (simulation shows the call moves more than it declares)` : ""}`);
   const day = rt.spends.filter((s) => s.ts > action.ts - DAY_MS).reduce((a, s) => a + s.usd, 0);
   const spendsNow = SPENDING.has(d.kind) || d.kind === "contract_call" ? Math.max(declaredUsd, simOut) : 0;
-  add("daily", "Daily limit", day + spendsNow <= p.dailyUsd, "block", `${fmtUsd(day + spendsNow)} of ${fmtUsd(p.dailyUsd)} used in 24 h`, `Would reach ${fmtUsd(day + spendsNow)} in 24 h, over the ${fmtUsd(p.dailyUsd)} daily limit`);
-  add("cumulative", "Lifetime cap", rt.cumulativeUsd + spendsNow <= p.cumulativeUsd, "block", `${fmtUsd(rt.cumulativeUsd + spendsNow)} of ${fmtUsd(p.cumulativeUsd)} lifetime cap`, `Would reach ${fmtUsd(rt.cumulativeUsd + spendsNow)}, over the ${fmtUsd(p.cumulativeUsd)} lifetime cap`);
+  add("daily", "Daily limit", day + spendsNow <= p.dailyUsd, "block", `${f(day + spendsNow)} of ${f(p.dailyUsd)} used in 24 h`, `Would reach ${f(day + spendsNow)} in 24 h, over the ${f(p.dailyUsd)} daily limit`);
+  add("cumulative", "Lifetime cap", rt.cumulativeUsd + spendsNow <= p.cumulativeUsd, "block", `${f(rt.cumulativeUsd + spendsNow)} of ${f(p.cumulativeUsd)} lifetime cap`, `Would reach ${f(rt.cumulativeUsd + spendsNow)}, over the ${f(p.cumulativeUsd)} lifetime cap`);
   // 10 frequency
   const recent = rt.approvedTs.filter((t) => t > action.ts - p.quota.windowMs).length;
   add("frequency", "Transaction quota", recent < p.quota.maxTx, "block", `${recent} of ${p.quota.maxTx} transactions used in the window`,
     `${recent} transactions in the last ${Math.round(p.quota.windowMs / 60000)} min, quota is ${p.quota.maxTx}: runaway-agent guard`);
   // 11 human threshold
-  if (p.humanApprovalAboveUsd !== undefined) add("human_threshold", "Human approval threshold", effective <= p.humanApprovalAboveUsd, "pending", `Under ${fmtUsd(p.humanApprovalAboveUsd)}`, `${fmtUsd(effective)} is above ${fmtUsd(p.humanApprovalAboveUsd)}: needs a human`);
+  if (p.humanApprovalAboveUsd !== undefined) add("human_threshold", "Human approval threshold", effective <= p.humanApprovalAboveUsd, "pending", `Under ${f(p.humanApprovalAboveUsd)}`, `${f(effective)} is above ${f(p.humanApprovalAboveUsd)}: needs a human`);
   // 12 simulation
   const moreThanSaid = simOut > declaredUsd + 0.005 && d.kind !== "approve";
-  add("simulation", "Simulation", sim.ok && !moreThanSaid, "block", sim.balanceChanges.length ? `Balance change matches the request (${fmtUsd(simOut)} out)` : "Simulation found no problem",
-    !sim.ok ? `Simulation fails: ${sim.revertReason ?? "reverts"}` : `Simulation shows ${fmtUsd(simOut)} leaving the wallet but the action declares ${fmtUsd(declaredUsd)}: the call does more than it says`);
+  add("simulation", "Simulation", sim.ok && !moreThanSaid, "block", sim.balanceChanges.length ? `Balance change matches the request (${f(simOut)} out)` : "Simulation found no problem",
+    !sim.ok ? `Simulation fails: ${sim.revertReason ?? "reverts"}` : `Simulation shows ${f(simOut)} leaving the wallet but the action declares ${f(declaredUsd)}: the call does more than it says`);
 
   if (i.humanApprovedBy)
     for (const r of rules) if (!r.ok && r.severity === "pending") { r.ok = true; r.severity = "info"; r.detail = `Approved by ${i.humanApprovedBy}: ${r.detail}`; }

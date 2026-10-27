@@ -34,6 +34,8 @@ export interface AssetInfo { symbol: string; decimals: number; usd: number }
 
 export interface AgentPolicy {
   chainId: number;
+  /** label for limits and values: "$" (default, USD) or e.g. "ETH" when asset prices are 1 unit per token */
+  unit?: string;
   /** allowlisted assets (lowercase token address, or "native") with decimals and a USD price used for limits */
   assets: Record<string, AssetInfo>;
   /** allowed target contracts besides the allowlisted token contracts */

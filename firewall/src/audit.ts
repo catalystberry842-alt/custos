@@ -65,3 +65,9 @@ export function verifyChain(entries: readonly AuditEntry[]): VerifyResult {
   }
   return { ok: true, checked: entries.length, head: prev };
 }
+
+/** Build the next entry for an externally held chain (e.g. a stateless firewall API whose client keeps the log). */
+export function makeEntry(prev: { index: number; hash: string } | null, e: NewEntry): AuditEntry {
+  const base = { ...e, index: prev ? prev.index + 1 : 0, prevHash: prev ? prev.hash : GENESIS };
+  return { ...base, hash: hashEntry(base) };
+}

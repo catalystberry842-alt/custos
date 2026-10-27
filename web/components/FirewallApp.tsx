@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import SimBanner from "@/components/SimBanner";
+import ModeSwitch from "@/components/ModeSwitch";
 import { verifyChain, type AgentPolicy, type AuditEntry, type Verdict } from "@/lib/firewall";
 import { ADDR } from "@/lib/firewall";
 import { advance, agentOf, createDemo, loadDemo, nameOf, pay, runScenarioDemo, saveDemo, setPolicy, submit, SCENARIOS, type Demo } from "@/lib/fwdemo";
@@ -107,6 +108,9 @@ export default function FirewallApp() {
         </div>
       </div>
 
+      <div className="row between wrapflex" style={{ gap: 10 }}>
+        <ModeSwitch mode="sim" />
+      </div>
       <div className="row between wrapflex" style={{ gap: 10 }}>
         <SimBanner text="Fake agent, fake funds, fake time. The simulator is a deterministic mock." />
         <span className="xs dim">Simulated time {clock(d.t)} UTC</span>

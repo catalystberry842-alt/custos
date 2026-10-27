@@ -210,3 +210,8 @@ post**. Before whitelisting a stablecoin in a vault (`addToken`), confirm its L2
 * **Deploy tx stuck / failed:** nothing is half-deployed (single `CREATE`). Re-run the dry-run; check balance and gas price; retry.
 * **A bug in a deployed vault:** there is no admin. Owners withdraw or `closeVault()` (while alive); publish an advisory; deploy a fixed factory; users migrate.
 * **Key suspicion:** deployer key has no powers after deployment; rotating it is unnecessary but harmless.
+
+
+## Testnet with a keystore password file
+
+`scripts/deploy-robinhood.sh` accepts `--password-file <path>` on testnet only (refused on mainnet). The throwaway testnet keystore and its password file live under `/home/box/secrets` (mode 0600), never in the repo. `scripts/testnet-bootstrap.sh` creates and configures a demo vault. Results are in docs/testnet.md.

@@ -6,4 +6,7 @@ export * from "./simulate.js";
 export * from "./threat.js";
 export * from "./policy.js";
 export * from "./firewall.js";
+export * from "./vault.js";
+export * from "./rpcsim.js";
+export * from "./stateless.js";
 export * from "./fixtures.js";

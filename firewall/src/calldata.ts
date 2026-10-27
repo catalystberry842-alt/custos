@@ -11,6 +11,8 @@ const SEL = {
   increaseAllowance: "0x39509351",
   setApprovalForAll: "0xa22cb465",
   permit: "0xd505accf",
+  /** Custos vault: agentSpend(address asset, address to, uint256 amount); asset 0x0 = ETH */
+  agentSpend: "0xb45d3594",
 } as const;
 
 const strip = (h: string) => (h.startsWith("0x") ? h.slice(2) : h);
@@ -33,6 +35,12 @@ export function decode(a: Pick<RawAction, "to" | "value" | "data">, extraSelecto
       return need(2) ? { ...base, kind: "erc20_transfer", fn: "transfer", recipient: addrAt(data, 0), amountRaw: numAt(data, 1) } : malformed(target, selector);
     case SEL.transferFrom:
       return need(3) ? { ...base, kind: "erc20_transferFrom", fn: "transferFrom", recipient: addrAt(data, 1), amountRaw: numAt(data, 2) } : malformed(target, selector);
+    case SEL.agentSpend: {
+      if (!need(3)) return malformed(target, selector);
+      const token = addrAt(data, 0);
+      const native = token === "0x0000000000000000000000000000000000000000";
+      return { kind: native ? "native_transfer" : "erc20_transfer", fn: "agentSpend", target, selector, asset: native ? "native" : token, recipient: addrAt(data, 1), amountRaw: numAt(data, 2) };
+    }
     case SEL.approve:
     case SEL.increaseAllowance: {
       if (!need(2)) return malformed(target, selector);
@@ -68,4 +76,5 @@ export const encodeApprove = (spender: string, amount: bigint) => enc(SEL.approv
 export const encodeSetApprovalForAll = (operator: string, approved: boolean) => enc(SEL.setApprovalForAll, addrWord(operator), numWord(approved ? 1n : 0n));
 export const encodePermit = (owner: string, spender: string, value: bigint, deadline: bigint) =>
   enc(SEL.permit, addrWord(owner), addrWord(spender), numWord(value), numWord(deadline), numWord(27n), pad("0"), pad("0"));
+export const encodeAgentSpend = (asset: string, to: string, amount: bigint) => enc(SEL.agentSpend, addrWord(asset), addrWord(to), numWord(amount));
 export const encodeCall = (selector: string, ...args: bigint[]) => enc(selector, ...args.map(numWord));
