@@ -11,3 +11,4 @@ next-env.d.ts
 *.tmp
 custos-state.json
 .vercel
+demo/
